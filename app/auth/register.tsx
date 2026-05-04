@@ -1,21 +1,32 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  SafeAreaView,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
-// Iconos usando emojis o texto - sin dependencias externas
-// También puedes usar Icon from 'react-native-vector-icons/Ionicons' si luego instalas la lib
+const COLORS = {
+  primary: '#2b6777',
+  secondary: '#52ab98',
+  background: '#f8fafc',
+  white: '#ffffff',
+  textDark: '#1e293b',
+  textLight: '#64748b',
+  border: '#e2e8f0',
+};
 
-export const VetConectRegisterScreen = () => {
+
+export default function RegisterScreen() {
+  const router = useRouter();
   const [nombreApellidos, setNombreApellidos] = useState('');
   const [email, setEmail] = useState('');
   const [pais, setPais] = useState('');
@@ -72,13 +83,12 @@ export const VetConectRegisterScreen = () => {
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo y título VetConect */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoEmoji}>🐾</Text>
+          {/* LOGO */}
+          <View style={styles.logoRow}>
+            <View style={styles.logoIcon}>
+              <Ionicons name="paw" size={28} color={COLORS.white} />
             </View>
-            <Text style={styles.appName}>VetConect</Text>
-            <Text style={styles.tagline}>Regístrate y conecta con tu veterinario</Text>
+            <Text style={styles.logoText}>Vet<Text style={{ color: COLORS.textDark }}>Conect</Text></Text>
           </View>
 
           {/* Botón Continuar con Google */}
@@ -222,7 +232,7 @@ export const VetConectRegisterScreen = () => {
             {/* Link a login si ya tiene cuenta */}
             <View style={styles.loginRedirect}>
               <Text style={styles.loginText}>¿Ya tienes una cuenta? </Text>
-              <TouchableOpacity onPress={() => Alert.alert('Navegar', 'Ir a inicio de sesión')}>
+              <TouchableOpacity onPress={() => router.push('/auth/login')}>
                 <Text style={styles.loginLink}>Inicia sesión aquí</Text>
               </TouchableOpacity>
             </View>
@@ -231,12 +241,12 @@ export const VetConectRegisterScreen = () => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F0F7ED',
+    backgroundColor: '#fdfdfd',
   },
   container: {
     flex: 1,
@@ -247,40 +257,9 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 20 : 40,
     paddingBottom: 40,
   },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 32,
-    marginTop: 20,
-  },
-  logoCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#2C6E49',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  logoEmoji: {
-    fontSize: 48,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1B4D3E',
-    marginTop: 12,
-    letterSpacing: 0.5,
-  },
-  tagline: {
-    fontSize: 14,
-    color: '#6B8F6B',
-    marginTop: 4,
-    fontWeight: '500',
-  },
+  logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
+  logoIcon: { backgroundColor: COLORS.primary, padding: 8, borderRadius: 12, marginRight: 10 },
+  logoText: { fontSize: 28, fontWeight: '800', color: COLORS.secondary },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,19 +368,19 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   registerButton: {
-    backgroundColor: '#2C6E49',
+    backgroundColor: '#2b6777',
     paddingVertical: 16,
-    borderRadius: 14,
+    borderRadius: 27,
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#2C6E49',
+    shadowColor: '#2b6777',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 3,
   },
   registerButtonDisabled: {
-    backgroundColor: '#A3C4A3',
+    backgroundColor: '#2b6777',
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -428,4 +407,3 @@ const styles = StyleSheet.create({
   },
 });
 
-export default VetConectRegisterScreen;

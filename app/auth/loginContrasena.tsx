@@ -130,7 +130,7 @@ export default function LoginContrasenaScreen() {
           {/* FOOTER */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
-            <Pressable onPress={() => router.push('/')}>
+            <Pressable onPress={() => router.push('/auth/register')}>
               <Text style={styles.linkText}>Regístrate aquí</Text>
             </Pressable>
           </View>

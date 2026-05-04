@@ -164,17 +164,17 @@ export default function LoginScreen() {
           </View>
 
           {/* BOTÓN SIGUIENTE */}
-          <TouchableOpacity 
-            style={styles.loginBtn}
-            onPress={handleNextStep}
-          >
-            <Text style={styles.loginBtnText}>Siguiente</Text>
-          </TouchableOpacity>
+<TouchableOpacity 
+  style={styles.loginBtn}
+  onPress={() => router.push('/auth/loginContrasena')}
+>
+  <Text style={styles.loginBtnText}>Siguiente</Text>
+</TouchableOpacity>
 
           {/* FOOTER */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
-            <Pressable onPress={() => router.push('/')}>
+            <Pressable onPress={() => router.push('/auth/register')}>
               <Text style={styles.linkText}>Regístrate aquí</Text>
             </Pressable>
           </View>
