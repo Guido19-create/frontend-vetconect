@@ -1,5 +1,5 @@
+// app/auth/login.tsx
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
@@ -8,14 +8,18 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
+  Pressable,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { AuthService } from '@/services/auth.service';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -29,8 +33,9 @@ const COLORS = {
   border: '#e2e8f0',
 };
 
-// Configuración de Google OAuth - REEMPLAZA CON TU CLIENT ID REAL
+// ⚠️ RECUERDA: Este Client ID debe ser de tipo "Web" en tu consola de Google Cloud Developer para que funcione con Expo Go
 const GOOGLE_CLIENT_ID = 'TU_CLIENT_ID_AQUI.apps.googleusercontent.com';
+
 const discovery = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenEndpoint: 'https://oauth2.googleapis.com/token',
@@ -39,53 +44,58 @@ const discovery = {
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // 🛠️ Configuración ajustada para solicitar el id_token (JWT)
   const [request, response, promptAsync] = useAuthRequest(
     {
       clientId: GOOGLE_CLIENT_ID,
       scopes: ['profile', 'email'],
-      redirectUri: makeRedirectUri({
-        scheme: 'vetconect',
-      }),
+      redirectUri: makeRedirectUri({ scheme: 'vetconect' }),
+      responseType: 'id_token', // 🔑 SOLICITAMOS EL ID_TOKEN DIRECTAMENTE
     },
     discovery
   );
 
+  // Escucha los cambios del flujo de autenticación de Google
   useEffect(() => {
     if (response?.type === 'success') {
-      const { access_token } = response.params;
-      handleGoogleUserInfo(access_token);
-    } else if (response?.type === 'error') {
-      Alert.alert('Error', 'No se pudo autenticar con Google');
-      setIsGoogleLoading(false);
+      // 🎯 Capturamos el id_token que viene en los parámetros de respuesta
+      const { id_token } = response.params;
+      
+      if (id_token) {
+        handleBackendSocialLogin(id_token);
+      } else {
+        showAuthError('No se pudo extraer la firma de identidad de Google.');
+      }
+    } else if (response?.type === 'error' || response?.type === 'cancel') {
+      showAuthError('Autenticación cancelada o fallida con Google.');
     }
   }, [response]);
 
-  const handleGoogleUserInfo = async (accessToken: string) => {
+  // 🚀 CONEXIÓN CON TU BACKEND NESTJS
+  const handleBackendSocialLogin = async (idToken: string) => {
     try {
-      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const userInfo = await userInfoResponse.json();
+      console.log('📦 Enviando idToken de Google a la API de NestJS...');
       
-      await AsyncStorage.setItem('userData', JSON.stringify({
-        name: userInfo.name,
-        email: userInfo.email,
-        photo: userInfo.picture,
-        accessToken: accessToken,
-      }));
+      // Llamamos a tu endpoint @Post('social-login')
+      const data = await AuthService.loginWithSocialProvider(idToken, 'google');
       
-      console.log('✅ Usuario autenticado:', userInfo.email);
-      Alert.alert('¡Bienvenido!', `Hola ${userInfo.name}`, [
-        {
-          text: 'Continuar',
-          onPress: () => router.push('/tabs'),
-        }
-      ]);
-    } catch (error) {
-      console.error('Error obteniendo info del usuario:', error);
-      Alert.alert('Error', 'No se pudo obtener la información del usuario');
+      console.log('✅ Autenticación exitosa en el Backend. Datos de usuario:', data.user);
+
+      if (Platform.OS === 'web') {
+        alert(`¡Bienvenido! Hola ${data.user.firstName}`);
+        router.push('/tabs');
+      } else {
+        Alert.alert('¡Bienvenido!', `Hola ${data.user.firstName}`, [
+          { text: 'Continuar', onPress: () => router.push('/tabs') }
+        ]);
+      }
+    } catch (error: any) {
+      console.error('❌ Error en el social login:', error);
+      const msg = error.response?.data?.message || 'El servidor rechazó la autenticación social.';
+      showAuthError(msg);
     } finally {
       setIsGoogleLoading(false);
     }
@@ -96,19 +106,42 @@ export default function LoginScreen() {
     try {
       await promptAsync();
     } catch (error) {
-      console.error('Error Google Sign-In:', error);
-      Alert.alert('Error', 'No se pudo iniciar sesión con Google');
-      setIsGoogleLoading(false);
+      showAuthError('No se pudo desplegar la ventana de Google.');
     }
   };
 
-  const handleNextStep = () => {
-    if (!email) {
-      Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
+  const showAuthError = (message: string) => {
+    setIsGoogleLoading(false);
+    if (Platform.OS === 'web') {
+      alert(message);
+    } else {
+      Alert.alert('Error de Autenticación', message);
+    }
+  };
+
+  // Login tradicional por correo electrónico
+  const handleNextStep = async () => {
+    if (!email.trim()) {
+      showAuthError('Por favor ingresa tu correo electrónico');
       return;
     }
-    AsyncStorage.setItem('tempEmail', email);
-    router.push('/auth/loginContrasena');
+
+    setIsLoading(true);
+    try {
+      const data = await AuthService.login(email);
+      const finalUserId = data.userId || '';
+      const emailFormatted = email.trim().toLowerCase();
+
+      await AsyncStorage.setItem('tempEmail', emailFormatted);
+      await AsyncStorage.setItem('tempUserId', finalUserId);
+      await AsyncStorage.setItem('authMode', 'login');
+
+      router.push('/auth/loginContrasena');
+    } catch (error: any) {
+      showAuthError(error.message || 'El correo electrónico no está registrado');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -130,9 +163,13 @@ export default function LoginScreen() {
           <TouchableOpacity 
             style={styles.googleBtn}
             onPress={handleGoogleSignIn}
-            disabled={isGoogleLoading}
+            disabled={isGoogleLoading || isLoading}
           >
-            <Ionicons name="logo-google" size={20} color="#ea4335" />
+            {isGoogleLoading ? (
+              <ActivityIndicator color="#ea4335" style={{ marginRight: 10 }} />
+            ) : (
+              <Ionicons name="logo-google" size={20} color="#ea4335" />
+            )}
             <Text style={styles.googleBtnText}>
               {isGoogleLoading ? 'Cargando...' : 'Continuar con Google'}
             </Text>
@@ -159,17 +196,23 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                editable={!isLoading}
               />
             </View>
           </View>
 
           {/* BOTÓN SIGUIENTE */}
-<TouchableOpacity 
-  style={styles.loginBtn}
-  onPress={() => router.push('/auth/loginContrasena')}
->
-  <Text style={styles.loginBtnText}>Siguiente</Text>
-</TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.loginBtn, isLoading && { opacity: 0.7 }]}
+            onPress={handleNextStep}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.loginBtnText}>Siguiente</Text>
+            )}
+          </TouchableOpacity>
 
           {/* FOOTER */}
           <View style={styles.footer}>
@@ -184,6 +227,7 @@ export default function LoginScreen() {
   );
 }
 
+// ... mantienes tus mismos estilos intactos de abajo
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f3f4f6' },
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
@@ -202,7 +246,6 @@ const styles = StyleSheet.create({
   logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
   logoIcon: { backgroundColor: COLORS.primary, padding: 8, borderRadius: 12, marginRight: 10 },
   logoText: { fontSize: 28, fontWeight: '800', color: COLORS.secondary },
-  
   googleBtn: {
     flexDirection: 'row',
     width: '100%',
@@ -215,15 +258,12 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   googleBtnText: { marginLeft: 10, fontWeight: '500', color: COLORS.textDark },
-  
   separatorContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 25, width: '100%' },
   line: { flex: 1, height: 1, backgroundColor: COLORS.border },
   separatorText: { marginHorizontal: 10, fontSize: 11, color: COLORS.textLight, fontWeight: '600' },
-  
   inputGroup: { width: '100%', marginBottom: 25 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   label: { fontWeight: '700', color: COLORS.textDark },
-  forgotText: { color: '#3b82f6', fontSize: 13, fontWeight: '500' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -234,7 +274,6 @@ const styles = StyleSheet.create({
     height: 55,
   },
   input: { flex: 1, marginLeft: 10, fontSize: 16 },
-  
   loginBtn: {
     backgroundColor: '#074e6c',
     width: '100%',
@@ -248,7 +287,6 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   loginBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  
   footer: { flexDirection: 'row', marginTop: 25 },
   footerText: { color: COLORS.textLight },
   linkText: { color: '#3b82f6', fontWeight: '700' },

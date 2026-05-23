@@ -2,17 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Importamos servicios de comunicación
+import { AuthService } from '@/services/auth.service';
 
 const COLORS = {
   primary: '#2b6777',
@@ -22,8 +27,8 @@ const COLORS = {
   textDark: '#1e293b',
   textLight: '#64748b',
   border: '#e2e8f0',
+  error: '#ef4444', // Color rojo para inputs inválidos
 };
-
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -36,7 +41,11 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Validación de requisitos de contraseña
+  // Estados de control para la API
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorsField, setErrorsField] = useState<{ [key: string]: boolean }>({});
+
+  // Validación de requisitos de contraseña local
   const hasMinLength = password.length >= 8;
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
@@ -44,33 +53,108 @@ export default function RegisterScreen() {
   const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasNumber;
   const doPasswordsMatch = password === confirmPassword && password !== '';
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
+    // Resetear los bordes rojos anteriores
+    setErrorsField({});
+
     if (!nombreApellidos.trim()) {
-      Alert.alert('Error', 'Por favor ingresa tu nombre y apellidos');
+      if (Platform.OS === 'web') alert('Por favor ingresa tu nombre y apellidos');
+      else Alert.alert('Error', 'Por favor ingresa tu nombre y apellidos');
       return;
     }
     if (!email.trim()) {
-      Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
+      if (Platform.OS === 'web') alert('Por favor ingresa tu correo electrónico');
+      else Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
       return;
     }
     if (!telefono.trim()) {
-      Alert.alert('Error', 'Por favor ingresa tu número de teléfono');
+      if (Platform.OS === 'web') alert('Por favor ingresa tu número de teléfono');
+      else Alert.alert('Error', 'Por favor ingresa tu número de teléfono');
       return;
     }
     if (!isPasswordValid) {
-      Alert.alert('Error', 'La contraseña no cumple con los requisitos');
+      if (Platform.OS === 'web') alert('La contraseña no cumple con los requisitos');
+      else Alert.alert('Error', 'La contraseña no cumple con los requisitos');
       return;
     }
     if (!doPasswordsMatch) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
+      if (Platform.OS === 'web') alert('Las contraseñas no coinciden');
+      else Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
-    Alert.alert('Éxito', 'Cuenta creada correctamente');
-    // Aquí iría la lógica de registro con tu backend
+
+    setIsLoading(true);
+
+    try {
+      // Estructuramos el objeto tal cual como lo espera tu CreateUserDto de NestJS
+      const payload = {
+        name: nombreApellidos.trim(),
+        email: email.trim().toLowerCase(),
+        phone: telefono.trim(),
+        location: pais.trim() || undefined, // Si está vacío se envía undefined
+        password: password
+      };
+
+      console.log('Enviando registro a NestJS:', payload);
+      
+      const response = await AuthService.registerInit(payload);
+
+      // Guardamos el email en AsyncStorage para usarlo dinámicamente en la verificación
+      await AsyncStorage.setItem('tempEmail', payload.email);
+
+      const successMsg = response.message || 'Código enviado por email';
+
+      if (Platform.OS === 'web') {
+        alert(successMsg);
+        router.push('/auth/verificarContrasena');
+      } else {
+        Alert.alert('Registro Iniciado', successMsg, [
+          { text: 'Ir a Verificar', onPress: () => router.push('/auth/verificarContrasena') }
+        ]);
+      }
+
+    } catch (error: any) {
+      console.log('ℹ️ Registro rechazado:', error.message);
+      
+      const errMsg = error.message || '';
+
+      // CASO 409: Conflicto de usuario duplicado
+      if (errMsg.includes('ya está registrado') || errMsg.includes('409')) {
+        const text409 = 'El correo electrónico ya se encuentra registrado en el sistema.';
+        if (Platform.OS === 'web') alert(text409);
+        else Alert.alert('Usuario existente', text409);
+        setErrorsField({ email: true }); // Resalta el email en rojo
+      } 
+      // CASO 400: Error de validación de campos de NestJS
+      else {
+        const text400 = 'Datos de entrada inválidos (error de validación de campos).';
+        if (Platform.OS === 'web') alert(text400);
+        else Alert.alert('Campos Incorrectos', text400);
+
+        // Mapeo inteligente del DTO: Encendemos bordes según el mensaje devuelto
+        const newFields: { [key: string]: boolean } = {};
+        const lowered = errMsg.toLowerCase();
+        
+        if (lowered.includes('email') || lowered.includes('correo')) newFields.email = true;
+        if (lowered.includes('password') || lowered.includes('contraseña')) newFields.password = true;
+        if (lowered.includes('name') || lowered.includes('nombre')) newFields.name = true;
+        if (lowered.includes('phone') || lowered.includes('teléfono')) newFields.phone = true;
+        
+        // Si no detectó palabras clave específicas, marcamos todos los obligatorios por precaución
+        if (Object.keys(newFields).length === 0) {
+          setErrorsField({ name: true, email: true, phone: true });
+        } else {
+          setErrorsField(newFields);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignUp = () => {
-    Alert.alert('Google', 'Registro con Google (próximamente)');
+    if (Platform.OS === 'web') alert('Registro con Google (próximamente)');
+    else Alert.alert('Google', 'Registro con Google (próximamente)');
   };
 
   return (
@@ -92,12 +176,12 @@ export default function RegisterScreen() {
           </View>
 
           {/* Botón Continuar con Google */}
-          <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignUp}>
+          <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignUp} disabled={isLoading}>
             <Text style={styles.googleIcon}>G</Text>
             <Text style={styles.googleButtonText}>Continuar con Google</Text>
           </TouchableOpacity>
 
-          {/* Separador O CONTINUAR CON CORREO */}
+          {/* Separador */}
           <View style={styles.separatorContainer}>
             <View style={styles.separatorLine} />
             <Text style={styles.separatorText}>O CONTINUAR CON CORREO</Text>
@@ -110,11 +194,12 @@ export default function RegisterScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nombre y Apellidos</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errorsField.name && styles.inputError]}
                 placeholder="Guido"
                 placeholderTextColor="#9CA3AF"
                 value={nombreApellidos}
                 onChangeText={setNombreApellidos}
+                editable={!isLoading}
               />
             </View>
 
@@ -122,26 +207,28 @@ export default function RegisterScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Correo Electrónico</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errorsField.email && styles.inputError]}
                 placeholder="tu@email.com"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
                 onChangeText={setEmail}
+                editable={!isLoading}
               />
             </View>
 
-            {/* Teléfono (NUEVO CAMPO) */}
+            {/* Teléfono */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Teléfono</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errorsField.phone && styles.inputError]}
                 placeholder="+34 612 345 678"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="phone-pad"
                 value={telefono}
                 onChangeText={setTelefono}
+                editable={!isLoading}
               />
             </View>
 
@@ -154,6 +241,7 @@ export default function RegisterScreen() {
                 placeholderTextColor="#9CA3AF"
                 value={pais}
                 onChangeText={setPais}
+                editable={!isLoading}
               />
             </View>
 
@@ -162,16 +250,18 @@ export default function RegisterScreen() {
               <Text style={styles.label}>Contraseña</Text>
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput]}
+                  style={[styles.input, styles.passwordInput, errorsField.password && styles.inputError]}
                   placeholder="●●●●●●●●"
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
+                  editable={!isLoading}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
                   style={styles.eyeIcon}
+                  disabled={isLoading}
                 >
                   <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
                 </TouchableOpacity>
@@ -183,16 +273,18 @@ export default function RegisterScreen() {
               <Text style={styles.label}>Confirmar Contraseña</Text>
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput]}
+                  style={[styles.input, styles.passwordInput, errorsField.password && styles.inputError]}
                   placeholder="Confirma tu contraseña"
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!showConfirmPassword}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
+                  editable={!isLoading}
                 />
                 <TouchableOpacity
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   style={styles.eyeIcon}
+                  disabled={isLoading}
                 >
                   <Text style={styles.eyeIconText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
                 </TouchableOpacity>
@@ -220,19 +312,23 @@ export default function RegisterScreen() {
             <TouchableOpacity
               style={[
                 styles.registerButton,
-                (!isPasswordValid || !doPasswordsMatch || !nombreApellidos || !email || !telefono) &&
+                (!isPasswordValid || !doPasswordsMatch || !nombreApellidos || !email || !telefono || isLoading) &&
                   styles.registerButtonDisabled,
               ]}
               onPress={handleRegister}
-              disabled={!isPasswordValid || !doPasswordsMatch || !nombreApellidos || !email || !telefono}
+              disabled={!isPasswordValid || !doPasswordsMatch || !nombreApellidos || !email || !telefono || isLoading}
             >
-              <Text style={styles.registerButtonText}>Registrarse</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.registerButtonText}>Registrarse</Text>
+              )}
             </TouchableOpacity>
 
             {/* Link a login si ya tiene cuenta */}
             <View style={styles.loginRedirect}>
               <Text style={styles.loginText}>¿Ya tienes una cuenta? </Text>
-              <TouchableOpacity onPress={() => router.push('/auth/login')}>
+              <TouchableOpacity onPress={() => router.push('/auth/login')} disabled={isLoading}>
                 <Text style={styles.loginLink}>Inicia sesión aquí</Text>
               </TouchableOpacity>
             </View>
@@ -244,13 +340,8 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fdfdfd',
-  },
-  container: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: '#fdfdfd' },
+  container: { flex: 1 },
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
@@ -270,52 +361,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
-  googleIcon: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4285F4',
-    marginRight: 12,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  separatorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  separatorLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#D1D5DB',
-  },
-  separatorText: {
-    marginHorizontal: 12,
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#9CA3AF',
-    letterSpacing: 0.5,
-  },
-  form: {
-    width: '100%',
-  },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
+  googleIcon: { fontSize: 18, fontWeight: 'bold', color: '#4285F4', marginRight: 12 },
+  googleButtonText: { fontSize: 16, fontWeight: '600', color: '#4B5563' },
+  separatorContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 28 },
+  separatorLine: { flex: 1, height: 1, backgroundColor: '#D1D5DB' },
+  separatorText: { marginHorizontal: 12, fontSize: 12, fontWeight: '500', color: '#9CA3AF', letterSpacing: 0.5 },
+  form: { width: '100%' },
+  inputGroup: { marginBottom: 18 },
+  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
   input: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -325,23 +379,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#1F2937',
+    width: '100%',
   },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
+  inputError: {
+    borderColor: COLORS.error, // Cambia el borde a rojo si hay error de backend
+    backgroundColor: '#FFF5F5',
   },
-  passwordInput: {
-    flex: 1,
-  },
-  eyeIcon: {
-    position: 'absolute',
-    right: 16,
-    padding: 4,
-  },
-  eyeIconText: {
-    fontSize: 20,
-  },
+  passwordContainer: { flexDirection: 'row', alignItems: 'center', width: '100%' },
+  passwordInput: { flex: 1 },
+  eyeIcon: { position: 'absolute', right: 16, padding: 4 },
+  eyeIconText: { fontSize: 20 },
   passwordRequirements: {
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
@@ -351,59 +398,20 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: '#2C6E49',
   },
-  requirementsTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  requirement: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-    lineHeight: 18,
-  },
-  requirementMet: {
-    color: '#2C6E49',
-    fontWeight: '500',
-  },
+  requirementsTitle: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  requirement: { fontSize: 12, color: '#6B7280', marginBottom: 4, lineHeight: 18 },
+  requirementMet: { color: '#2C6E49', fontWeight: '500' },
   registerButton: {
     backgroundColor: '#2b6777',
     paddingVertical: 16,
     borderRadius: 27,
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#2b6777',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
     elevation: 3,
   },
-  registerButtonDisabled: {
-    backgroundColor: '#2b6777',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  registerButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  loginRedirect: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  loginText: {
-    fontSize: 14,
-    color: '#4B5563',
-  },
-  loginLink: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2C6E49',
-  },
+  registerButtonDisabled: { backgroundColor: '#a5c3cc', elevation: 0 },
+  registerButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
+  loginRedirect: { flexDirection: 'row', justifyContent: 'center', marginTop: 8, marginBottom: 20 },
+  loginText: { fontSize: 14, color: '#4B5563' },
+  loginLink: { fontSize: 14, fontWeight: '600', color: '#2C6E49' },
 });
-

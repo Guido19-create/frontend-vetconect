@@ -1,3 +1,4 @@
+// app/auth/loginContrasena.tsx
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -13,7 +14,11 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
+
+// Importamos el servicio de autenticación
+import { AuthService } from '@/services/auth.service';
 
 const COLORS = {
   primary: '#2b6777',
@@ -30,6 +35,7 @@ export default function LoginContrasenaScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Cargar el email guardado en el paso anterior
@@ -42,23 +48,66 @@ export default function LoginContrasenaScreen() {
     loadEmail();
   }, []);
 
-  const handleLogin = () => {
+  // FLUJO DE INICIO DE SESIÓN INTEGRADO CON NESTJS
+  const handleLogin = async () => {
     if (!email) {
-      Alert.alert('Error', 'Correo electrónico no encontrado');
+      if (Platform.OS === 'web') alert('Correo electrónico no encontrado');
+      else Alert.alert('Error', 'Correo electrónico no encontrado');
       router.push('/auth/login');
       return;
     }
     
     if (!password) {
-      Alert.alert('Error', 'Por favor ingresa tu contraseña');
+      if (Platform.OS === 'web') alert('Por favor ingresa tu contraseña');
+      else Alert.alert('Error', 'Por favor ingresa tu contraseña');
       return;
     }
 
-    // Aquí va tu lógica de autenticación con email y contraseña
-    console.log('Iniciando sesión con:', { email, password });
-    
-    // Por ahora solo navegamos
-    router.push('/tabs');
+    setIsLoading(true);
+
+    try {
+      console.log('Iniciando sesión en login/init con:', email);
+      
+      // Llamada al endpoint de NestJS para validar contraseña e iniciar 2FA
+      const response = await AuthService.loginInit(email, password);
+      
+      // Capturamos el mensaje que envía tu backend
+      const successMessage = response.message || 'Se ha enviado un código al correo. Por favor revise.';
+      
+      // ✨ NOTA: Ya NO pisamos 'tempUserId' aquí porque fue guardado de forma segura en la pantalla 'login.tsx'
+
+      if (Platform.OS === 'web') {
+        alert(successMessage);
+        router.push('/auth/verificarContrasena'); 
+      } else {
+        Alert.alert('Código Enviado', successMessage, [
+          { 
+            text: 'Ir a verificar', 
+            onPress: () => router.push('/auth/verificarContrasena') 
+          }
+        ]);
+      }
+
+    } catch (error: any) {
+      console.log('ℹ️ Intento de Login rechazado:', error.message);
+
+      const backendError = error.message || '';
+      let alertMessage = 'Credenciales inválidas o usuario sin contraseña configurada';
+      
+      if (backendError.includes('contraseña configurada')) {
+        alertMessage = 'Este usuario no tiene una contraseña configurada (registrado vía red social).';
+      } else if (backendError.includes('invalidas') || backendError.includes('401')) {
+        alertMessage = 'Credenciales inválidas. Por favor, verifica tus datos.';
+      }
+
+      if (Platform.OS === 'web') {
+        alert(alertMessage);
+      } else {
+        Alert.alert('No se pudo iniciar sesión', alertMessage);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -100,6 +149,7 @@ export default function LoginContrasenaScreen() {
               <Text style={styles.label}>Contraseña</Text>
               <TouchableOpacity 
                 onPress={() => router.push('/auth/recuperarContrasena')}
+                disabled={isLoading}
               >
                 <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
@@ -112,25 +162,31 @@ export default function LoginContrasenaScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                editable={!isLoading}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
                 <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.textLight} />
               </TouchableOpacity>
             </View>
           </View>
 
-{/* BOTÓN INICIAR SESIÓN */}
-<TouchableOpacity 
-  style={styles.loginBtn}
-  onPress={() => router.push('/auth/verificarContrasena')}
->
-  <Text style={styles.loginBtnText}>Iniciar Sesión</Text>
-</TouchableOpacity>
-         
+          {/* BOTÓN INICIAR SESIÓN */}
+          <TouchableOpacity 
+            style={[styles.loginBtn, isLoading && { opacity: 0.7 }]}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.loginBtnText}>Iniciar Sesión</Text>
+            )}
+          </TouchableOpacity>
+          
           {/* FOOTER */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
-            <Pressable onPress={() => router.push('/auth/register')}>
+            <Pressable onPress={() => router.push('/auth/register')} disabled={isLoading}>
               <Text style={styles.linkText}>Regístrate aquí</Text>
             </Pressable>
           </View>
@@ -158,7 +214,6 @@ const styles = StyleSheet.create({
   logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
   logoIcon: { backgroundColor: COLORS.primary, padding: 8, borderRadius: 12, marginRight: 10 },
   logoText: { fontSize: 28, fontWeight: '800', color: COLORS.secondary },
-  
   inputGroup: { width: '100%', marginBottom: 25 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   label: { fontWeight: '700', color: COLORS.textDark },
@@ -173,7 +228,6 @@ const styles = StyleSheet.create({
     height: 55,
   },
   input: { flex: 1, marginLeft: 10, fontSize: 16 },
-  
   loginBtn: {
     backgroundColor: '#074e6c',
     width: '100%',
@@ -187,10 +241,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   loginBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  
   footer: { flexDirection: 'row', marginTop: 25 },
   footerText: { color: COLORS.textLight },
   linkText: { color: '#3b82f6', fontWeight: '700' },
 });
-
-

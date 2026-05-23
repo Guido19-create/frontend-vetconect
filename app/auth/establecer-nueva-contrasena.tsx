@@ -1,28 +1,39 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+// app/auth/establecerNuevaContrasena.tsx
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+
+// Importamos tu servicio de autenticación conectado al backend
+import { AuthService } from '@/services/auth.service';
 
 export default function EstablecerNuevaContraseña() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const email = params.email || '';
+  
+  // 🔑 AQUÍ CAPTURAMOS EL TOKEN: Viene desde const expoUrl = `exp://.../auth/establecerNuevaContrasena?token=${token}`
+  const token = (params.token as string) || ''; 
+  
   const [nuevaContraseña, setNuevaContraseña] = useState('');
   const [confirmarContraseña, setConfirmarContraseña] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Usando tu paleta de colores definida previamente
   const COLORS = {
-  primary: '#2b6777',
-  secondary: '#52ab98',
-  background: '#f8fafc',
-  white: '#ffffff',
-  textDark: '#1e293b',
-  textLight: '#64748b',
-};
+    primary: '#2b6777',
+    secondary: '#52ab98',
+    background: '#f8fafc',
+    white: '#ffffff',
+    textDark: '#1e293b',
+    textLight: '#64748b',
+  };
 
   const handleRestablecer = async () => {
-    // Validaciones
+    // 🛡️ Validación de seguridad por si abren la pantalla sin token
+    if (!token) {
+      Alert.alert('Error', 'El token de recuperación no es válido o ya expiró. Por favor solicita un nuevo correo.');
+      return;
+    }
+
     if (!nuevaContraseña || !confirmarContraseña) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
@@ -39,96 +50,114 @@ export default function EstablecerNuevaContraseña() {
     }
 
     setIsLoading(true);
+    Keyboard.dismiss();
 
     try {
-      // TODO: Conectar con tu API para restablecer la contraseña
-      // Ejemplo: await api.restablecerContraseña(email, nuevaContraseña);
+      // 🚀 PASO 3 EN ACCIÓN: Llamamos al endpoint @Post('recover-confirm') de tu backend
+      console.log('Enviando confirmación de contraseña para el token:', token);
       
-      setTimeout(() => {
-        setIsLoading(false);
-        Alert.alert(
-          'Éxito',
-          'Tu contraseña ha sido restablecida correctamente',
-          [
-            {
-              text: 'Iniciar Sesión',
-              onPress: () => router.replace('/auth/loginContrasena')
-            }
-          ]
-        );
-      }, 1500);
-      
-    } catch (error) {
+      await AuthService.confirmPasswordReset({
+        token: token,
+        newPassword: nuevaContraseña.trim()
+      });
+
       setIsLoading(false);
-      Alert.alert('Error', 'No se pudo restablecer la contraseña. Intenta de nuevo.');
+      
+      Alert.alert(
+        '¡Éxito!',
+        'Tu contraseña ha sido restablecida correctamente.',
+        [
+          {
+            text: 'Iniciar Sesión',
+            onPress: () => router.replace('/auth/loginContrasena')
+          }
+        ]
+      );
+      
+    } catch (error: any) {
+      setIsLoading(false);
+      // Capturamos el error estructurado que devuelve tu NestJS (ej: 401 Unauthorized)
+      const errorMessage = error.response?.data?.message || 'No se pudo restablecer la contraseña. Intenta de nuevo.';
+      Alert.alert('Error', errorMessage);
     }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Título */}
-      <Text style={styles.title}>Establecer nueva contraseña</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        {/* Título */}
+        <Text style={styles.title}>Establecer nueva contraseña</Text>
 
-      {/* Subtítulo */}
-      <Text style={styles.subtitle}>
-        Ingresa tu nueva contraseña a continuación.
-      </Text>
-
-      {/* Campo Nueva Contraseña */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Nueva Contraseña</Text>
-        <View style={styles.passwordContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Ingresa tu nueva contraseña"
-            placeholderTextColor="#999"
-            secureTextEntry={!showPassword}
-            value={nuevaContraseña}
-            onChangeText={setNuevaContraseña}
-          />
-          <TouchableOpacity 
-            style={styles.eyeButton}
-            onPress={() => setShowPassword(!showPassword)}
-          >
-            <Text style={styles.eyeText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Campo Confirmar Contraseña */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Confirmar Contraseña</Text>
-        <View style={styles.passwordContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Confirma tu nueva contraseña"
-            placeholderTextColor="#999"
-            secureTextEntry={!showPassword}
-            value={confirmarContraseña}
-            onChangeText={setConfirmarContraseña}
-          />
-        </View>
-      </View>
-
-      {/* Botón Restablecer */}
-      <TouchableOpacity 
-        style={[styles.button, isLoading && styles.buttonDisabled]}
-        onPress={handleRestablecer}
-        disabled={isLoading}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading ? 'Restableciendo...' : 'Restablecer Contraseña'}
+        {/* Subtítulo */}
+        <Text style={styles.subtitle}>
+          Ingresa tu nueva contraseña a continuación para recuperar el acceso a tu cuenta.
         </Text>
-      </TouchableOpacity>
 
-      {/* Enlace Volver */}
-      <TouchableOpacity 
-        style={styles.backLink}
-        onPress={() => router.back()}
-      >
-        <Text style={styles.backLinkText}>Volver al inicio de sesión</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Campo Nueva Contraseña */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Nueva Contraseña</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Ingresa tu nueva contraseña"
+              placeholderTextColor="#999"
+              secureTextEntry={!showPassword}
+              value={nuevaContraseña}
+              onChangeText={setNuevaContraseña}
+              autoCapitalize="none"
+              editable={!isLoading}
+            />
+            <TouchableOpacity 
+              style={styles.eyeButton}
+              onPress={() => setShowPassword(!showPassword)}
+              disabled={isLoading}
+            >
+              <Text style={styles.eyeText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Campo Confirmar Contraseña */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Confirmar Contraseña</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Confirma tu nueva contraseña"
+              placeholderTextColor="#999"
+              secureTextEntry={!showPassword}
+              value={confirmarContraseña}
+              onChangeText={setConfirmarContraseña}
+              autoCapitalize="none"
+              editable={!isLoading}
+              onSubmitEditing={handleRestablecer}
+            />
+          </View>
+        </View>
+
+        {/* Botón Restablecer */}
+        <TouchableOpacity 
+          style={[styles.button, isLoading && styles.buttonDisabled]}
+          onPress={handleRestablecer}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Restablecer Contraseña</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Enlace Volver */}
+        <TouchableOpacity 
+          style={styles.backLink}
+          onPress={() => router.replace('/auth/loginContrasena')}
+          disabled={isLoading}
+        >
+          <Text style={styles.backLinkText}>Volver al inicio de sesión</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -167,16 +196,17 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     borderRadius: 12,
     backgroundColor: '#F9F9F9',
+    height: 55,
   },
   input: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingVertical: 14,
     fontSize: 16,
+    color: '#000',
   },
   eyeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 15,
+    justifyContent: 'center',
   },
   eyeText: {
     fontSize: 20,
@@ -184,7 +214,8 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#2b6777',
     borderRadius: 27,
-    paddingVertical: 16,
+    height: 55,
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
     marginBottom: 16,
@@ -205,6 +236,6 @@ const styles = StyleSheet.create({
   backLinkText: {
     color: '#007AFF',
     fontSize: 14,
-    
+    fontWeight: '600',
   },
 });

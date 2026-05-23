@@ -12,9 +12,15 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Importamos tu servicio de autenticación
+import { AuthService } from '@/services/auth.service';
 
 const COLORS = {
   primary: '#2b6777',
@@ -53,117 +59,142 @@ export default function ForgotPasswordScreen() {
     if (emailError) validateEmail(text);
   };
 
+  // FLUJO DE PETICIÓN DE RECUPERACIÓN CONECTADO A NESTJS
   const handleSendCode = async () => {
     if (!validateEmail(email)) return;
 
     setIsLoading(true);
+    Keyboard.dismiss(); // Cierra el teclado automáticamente al enviar
 
-    // Simular envío de código - Aquí iría tu llamada a API
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const emailFormatted = email.trim().toLowerCase();
+      console.log('Enviando solicitud de recuperación para:', emailFormatted);
+
+      // LLAMADA AL ENDPOINT: @Post('recover-request')
+      // Nota: Asegúrate de que en tu auth.service tengas implementado este método apuntando a tu backend
+      const response = await AuthService.recoverPasswordRequest(emailFormatted);
       
-      // Simular éxito
-      Alert.alert(
-        'Código Enviado',
-        `Hemos enviado un código de recuperación a ${email}`,
-        [
-          {
-            text: 'Aceptar',
-            onPress: () => router.push('/auth/verificarContrasena') // Pantalla para ingresar código
-          }
-        ]
-      );
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo enviar el código. Intenta nuevamente.');
+      console.log('Respuesta de recuperación recibida:', response);
+
+      // Guardamos el email localmente para recordar el contexto en los siguientes pasos
+      await AsyncStorage.setItem('tempEmail', emailFormatted);
+
+      const successMessage = typeof response === 'string' ? response : (response?.message || 'Recuperación procesada correctamente.');
+
+      if (Platform.OS === 'web') {
+        alert(`${successMessage} Revisa tu bandeja de entrada.`);
+        router.push('/auth/revisaTuCorreo');
+      } else {
+        Alert.alert(
+          'Solicitud Procesada',
+          'Si el correo está registrado, recibirás un enlace de recuperación en breve. Revisa tu bandeja de entrada.',
+          [
+            {
+              text: 'Entendido',
+              onPress: () => router.push('/auth/revisaTuCorreo'),
+            },
+          ]
+        );
+      }
+    } catch (error: any) {
+      console.log('ℹ️ Error en recoverRequest:', error.message || error);
+      
+      const errorMessage = error.message || 'No se pudo enviar el correo de recuperación. Por favor, inténtelo más tarde.';
+
+      if (Platform.OS === 'web') {
+        alert(errorMessage);
+      } else {
+        Alert.alert('Error de Envío', errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.centerContent}
-      >
-        <View style={styles.card}>
-          {/* Botón volver */}
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
-          </TouchableOpacity>
+    // Componente para descartar el teclado al hacer tap en cualquier lugar vacío
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.centerContent}
+        >
+          <View style={styles.card}>
+            {/* Botón volver */}
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.back()}
+              disabled={isLoading}
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
+            </TouchableOpacity>
 
-          {/* Icono/Logo */}
-          <View style={styles.iconContainer}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="key-outline" size={40} color={COLORS.primary} />
+            {/* Icono/Logo */}
+            <View style={styles.iconContainer}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="key-outline" size={40} color={COLORS.primary} />
+              </View>
             </View>
-          </View>
 
-          {/* Título */}
-          <Text style={styles.title}>Recuperar Contraseña</Text>
-          
-          {/* Descripción */}
-          <Text style={styles.description}>
-            Ingresa tu correo electrónico para recibir un enlace de recuperación.
-          </Text>
+            {/* Título */}
+            <Text style={styles.title}>Recuperar Contraseña</Text>
+            
+            {/* Descripción */}
+            <Text style={styles.description}>
+              Ingresa tu correo electrónico para recibir un enlace de recuperación.
+            </Text>
 
-          {/* Input Correo Electrónico */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Correo Electrónico</Text>
-            <View style={[styles.inputWrapper, emailError && styles.inputWrapperError]}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.textLight} />
-              <TextInput
-                style={styles.input}
-                placeholder="nombre@ejemplo.com"
-                value={email}
-                onChangeText={handleEmailChange}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-              {email !== '' && !emailError && (
-                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+            {/* Input Correo Electrónico */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Correo Electrónico</Text>
+              <View style={[styles.inputWrapper, emailError && styles.inputWrapperError]}>
+                <Ionicons name="mail-outline" size={20} color={COLORS.textLight} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="nombre@ejemplo.com"
+                  value={email}
+                  onChangeText={handleEmailChange}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  onSubmitEditing={handleSendCode} // Permite enviar desde el botón del teclado
+                />
+                {email !== '' && !emailError && (
+                  <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                )}
+              </View>
+              {emailError ? (
+                <Text style={styles.errorText}>{emailError}</Text>
+              ) : null}
+            </View>
+
+            {/* Botón Enviar Código */}
+            <TouchableOpacity 
+              style={[styles.sendBtn, isLoading && styles.sendBtnDisabled]}
+              onPress={handleSendCode}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.sendBtnText}>Enviar Código</Text>
               )}
-            </View>
-            {emailError ? (
-              <Text style={styles.errorText}>{emailError}</Text>
-            ) : null}
-          </View>
-{/* Botón Enviar Código */}
-<TouchableOpacity 
-  style={[styles.sendBtn, isLoading && styles.sendBtnDisabled]}
-  onPress={() => {
-    // Primero envías el código si es necesario
-    if (handleSendCode) {
-      handleSendCode();
-    }
-    // Luego navegas a la página de verificación
-    router.push('/auth/revisaTuCorreo');
-  }}
-  disabled={isLoading}
->
-  {isLoading ? (
-    <ActivityIndicator color={COLORS.white} />
-  ) : (
-    <Text style={styles.sendBtnText}>Enviar Código</Text>
-  )}
-</TouchableOpacity>
+            </TouchableOpacity>
 
-          {/* Link Volver al inicio de sesión */}
-          <Pressable 
-            style={styles.backToLogin}
-            onPress={() => router.push('/auth/loginContrasena')}
-          >
-            <Ionicons name="log-in-outline" size={16} color={COLORS.primary} />
-            <Text style={styles.backToLoginText}>Volver al inicio de sesión</Text>
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            {/* Link Volver al inicio de sesión */}
+            <Pressable 
+              style={styles.backToLogin}
+              onPress={() => router.push('/auth/loginContrasena')}
+              disabled={isLoading}
+            >
+              <Ionicons name="log-in-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.backToLoginText}>Volver al inicio de sesión</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
