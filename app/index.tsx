@@ -69,7 +69,58 @@ const FeatureCard = ({ icon, title, desc }: { icon: any; title: string; desc: st
 export default function VetConectLanding() {
   const { width } = useWindowDimensions();
   const isDesktop = width > 768;
-  const [form, setForm] = useState({ name: '', email: '', phone: '', clinic: '' });
+  const [form, setForm] = useState({ 
+    name: '', 
+    email: '', 
+    phone: '', 
+    clinic: '', 
+    direccion: '',
+    descripcion: '',
+    horario: 'Lun-Vie 9am-7pm',
+    horarioPersonalizado: '',
+    mostrarHorarioPersonalizado: false,
+    requiereAprobacion: false,
+  });
+  const [menuVisible, setMenuVisible] = useState(false);
+  const menuRef = useRef<View>(null);
+
+  // Función para cerrar el menú
+  const cerrarMenu = () => setMenuVisible(false);
+
+  // Función para navegar (puedes implementarla después)
+  const handleMenuOption = (opcion: string) => {
+    console.log(`Navegando a: ${opcion}`);
+    setMenuVisible(false);
+    // Aquí después agregarás la navegación real
+  };
+
+  // Función para actualizar el formulario
+  const actualizarForm = (campo: string, valor: any) => {
+    setForm(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  // Función para manejar selección de horario
+  const seleccionarHorario = (horario: string) => {
+    if (horario === 'personalizado') {
+      actualizarForm('mostrarHorarioPersonalizado', true);
+      actualizarForm('horario', 'personalizado');
+    } else {
+      actualizarForm('mostrarHorarioPersonalizado', false);
+      actualizarForm('horario', horario);
+      actualizarForm('horarioPersonalizado', '');
+    }
+  };
+
+  // Función para actualizar horario personalizado
+  const actualizarHorarioPersonalizado = (texto: string) => {
+    actualizarForm('horarioPersonalizado', texto);
+    actualizarForm('horario', texto);
+  };
+
+  // Función para el checkbox de aprobación
+  const toggleAprobacion = () => {
+    actualizarForm('requiereAprobacion', !form.requiereAprobacion);
+  };
 
   // Función para navegar al login
   const handleLogin = () => {
@@ -87,11 +138,48 @@ export default function VetConectLanding() {
               <Text key={item} style={styles.navLinkItem}>{item}</Text>
             ))}
             <TouchableOpacity style={styles.btnPrimarySmall}>
-              <Text style={styles.btnTextWhite}>Crear mi clínica</Text>
+              <Text style={styles.btnTextWhite}>Crear mi Clínica</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <Ionicons name="menu" size={30} color={COLORS.primary} />
+          <>
+            <TouchableOpacity onPress={() => setMenuVisible(!menuVisible)}>
+              <Ionicons name="menu" size={30} color={COLORS.primary} />
+            </TouchableOpacity>
+            
+            {/* MENÚ FLOTANTE */}
+            {menuVisible && (
+              <>
+                <Pressable style={styles.menuOverlay} onPress={cerrarMenu} />
+                <View style={styles.menuContainer}>
+                  <View style={styles.menuHeader}>
+                    <Text style={styles.menuHeaderText}>Menú</Text>
+                    <TouchableOpacity onPress={cerrarMenu}>
+                      <Ionicons name="close" size={24} color={COLORS.textDark} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {[
+                    { icon: 'person-outline', label: 'Mi Cuenta' },
+                    { icon: 'business-outline', label: 'Clínicas' },
+                    { icon: 'medkit-outline', label: 'Mi Clínica' },
+                    { icon: 'paw-outline', label: 'Mis Mascotas' },
+                    { icon: 'settings-outline', label: 'Ajustes' },
+                    { icon: 'help-circle-outline', label: 'Ayuda' },
+                  ].map((item) => (
+                    <TouchableOpacity
+                      key={item.label}
+                      style={styles.menuItem}
+                      onPress={() => handleMenuOption(item.label)}
+                    >
+                      <Ionicons name={item.icon as any} size={22} color={COLORS.primary} />
+                      <Text style={styles.menuItemText}>{item.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+          </>
         )}
       </View>
 
@@ -101,7 +189,7 @@ export default function VetConectLanding() {
           <View style={isDesktop ? { flex: 1 } : { width: '100%' }}>
             <View style={styles.badge}><Text style={styles.badgeText}>PLATAFORMA PARA CLÍNICAS VETERINARIAS</Text></View>
             <Text style={styles.heroTitleText}>Tu clínica veterinaria, 100% digital "SIEMPRE LISTA".</Text>
-            <Text style={styles.heroDescText}>VetConect reúne agenda online, historiales clínicos, pagos y reportes en una sola plataforma. Menos papeleo, más tiempo con los animales.</Text>
+            <Text style={styles.heroDescText}>¿Cansado de usar WhatsApp para gestionar citas y olvidar conversaciones? VetConect crea un canal de comunicación limpio entre veterinarios y clientes: chat profesional, agenda compartida, recordatorios automáticos para ambos y acceso del dueño al historial clínico de sus animales. Sin mezclar números personales, sin papeles, sin pérdidas de información.</Text>
             
             <View style={styles.heroBtnGroup}>
               <TouchableOpacity style={styles.btnPrimary}><Text style={styles.btnTextWhite}>Crear tu clínica gratis</Text></TouchableOpacity>
@@ -111,7 +199,6 @@ export default function VetConectLanding() {
               >
                 <Text style={styles.btnTextWhite}>Iniciar Sesión</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.btnSecondary}><Text style={styles.btnTextPrimary}>Ver cómo funciona</Text></TouchableOpacity>
             </View>
 
             <View style={styles.indicators}>
@@ -160,22 +247,6 @@ export default function VetConectLanding() {
               </View>
             ))}
           </View>
-        </View>
-
-        {/* 5. SERVICIOS (ACORDEÓN SIMULADO) */}
-        <View style={styles.sectionPadding}>
-          <SectionTitle title="Una plataforma, cuatro herramientas" />
-          {[
-            'Perfil de clínica (Dominio, Galería)',
-            'Agenda online (Reservas, Bloqueos)',
-            'Ficha de pacientes (Archivos, Carnet)',
-            'Reportes e indicadores (Finanzas)'
-          ].map((item, idx) => (
-            <AnimatedPressable key={idx} style={styles.accordionItem}>
-              <Text style={styles.accordionText}>{item}</Text>
-              <View style={styles.btnAumentar}><Text style={{ color: COLORS.white, fontSize: 12 }}>Aumentar brillo</Text></View>
-            </AnimatedPressable>
-          ))}
         </View>
 
         {/* 6. CÓMO FUNCIONA */}
@@ -238,15 +309,114 @@ export default function VetConectLanding() {
             <Text style={styles.heroDescText}>Completa estos datos y empieza en menos de 5 minutos.</Text>
             
             <View style={styles.formCard}>
-              <TextInput placeholder="Nombre completo" style={styles.input} />
-              <TextInput placeholder="Email profesional" style={styles.input} />
-              <TextInput placeholder="Teléfono / WhatsApp" style={styles.input} />
-              <TextInput placeholder="Nombre de tu clínica" style={styles.input} />
-              <View style={styles.checkboxRow}>
-                <Ionicons name="checkbox" size={24} color={COLORS.secondary} />
-                <Text style={{ marginLeft: 10 }}>Acepto recibir información</Text>
+              <TextInput 
+                placeholder="Nombre de tu clínica *" 
+                style={styles.input}
+                value={form.clinic}
+                onChangeText={(text) => actualizarForm('clinic', text)}
+              />
+              <TextInput 
+                placeholder="Dirección de la clínica *" 
+                style={styles.input}
+                value={form.direccion}
+                onChangeText={(text) => actualizarForm('direccion', text)}
+              />
+              <TextInput 
+                placeholder="Descripción (opcional)" 
+                style={styles.input}
+                value={form.descripcion}
+                onChangeText={(text) => actualizarForm('descripcion', text)}
+                multiline
+                numberOfLines={3}
+              />
+              
+              {/* SELECTOR DE HORARIO */}
+              <Text style={styles.labelText}>Horario de atención *</Text>
+              <View style={styles.horarioContainer}>
+                {[
+                  'Lun-Vie 9am-7pm',
+                  'Lun-Vie 9am-9pm',
+                  'Lun-Sáb 9am-8pm',
+                  'Lun-Dom 10am-6pm',
+                  '24 horas (Urgencias)',
+                ].map((horario) => (
+                  <TouchableOpacity
+                    key={horario}
+                    style={[
+                      styles.horarioOption,
+                      form.horario === horario && styles.horarioOptionSelected
+                    ]}
+                    onPress={() => seleccionarHorario(horario)}
+                  >
+                    <Text style={[
+                      styles.horarioOptionText,
+                      form.horario === horario && styles.horarioOptionTextSelected
+                    ]}>
+                      {horario}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                
+                {/* Opción Personalizado */}
+                <TouchableOpacity
+                  style={[
+                    styles.horarioOption,
+                    form.mostrarHorarioPersonalizado && styles.horarioOptionSelected
+                  ]}
+                  onPress={() => seleccionarHorario('personalizado')}
+                >
+                  <Text style={[
+                    styles.horarioOptionText,
+                    form.mostrarHorarioPersonalizado && styles.horarioOptionTextSelected
+                  ]}>
+                    ✏️ Personalizado
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.btnPrimary}><Text style={styles.btnTextWhite}>Crear mi clínica gratis</Text></TouchableOpacity>
+
+              {/* Input de horario personalizado */}
+              {form.mostrarHorarioPersonalizado && (
+                <View style={styles.personalizadoContainer}>
+                  <TextInput
+                    style={styles.inputPersonalizado}
+                    placeholder="Ej: Lun-Vie 8am-6pm, Sáb 9am-2pm, Dom cerrado"
+                    value={form.horarioPersonalizado}
+                    onChangeText={actualizarHorarioPersonalizado}
+                    multiline
+                    numberOfLines={2}
+                    autoFocus
+                  />
+                  <Text style={styles.personalizadoAyuda}>
+                    💡 Escribe tu horario personalizado (ejemplo: Lunes a Viernes de 8am a 6pm, Sábados 9am a 1pm)
+                  </Text>
+                </View>
+              )}
+
+              {/* CHECKBOX DE APROBACIÓN */}
+              <TouchableOpacity 
+                style={styles.checkboxRow}
+                onPress={toggleAprobacion}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={form.requiereAprobacion ? "checkbox" : "square-outline"} 
+                  size={24} 
+                  color={form.requiereAprobacion ? COLORS.secondary : COLORS.textLight} 
+                />
+                <Text style={styles.checkboxText}>
+                  Mi clínica requiere aprobación del veterinario para agendar citas
+                </Text>
+              </TouchableOpacity>
+              
+              <Text style={styles.ayudaTexto}>
+                * Si activas esta opción, los clientes podrán solicitar citas, pero un veterinario deberá confirmarlas manualmente.
+              </Text>
+
+              <View style={styles.divider} />
+              
+              <TouchableOpacity style={styles.btnPrimary}>
+                <Text style={styles.btnTextWhite}>Crear mi clínica gratis</Text>
+              </TouchableOpacity>
               <Text style={styles.legalText}>Tus datos están seguros. No compartimos información.</Text>
             </View>
           </View>
@@ -254,10 +424,10 @@ export default function VetConectLanding() {
           <View style={[styles.benefitsCard, isDesktop && { width: 350 }]}>
             <Text style={styles.cardTitle}>Beneficios Premium</Text>
             {[
-              '14 días de prueba total',
-              'Migración asistida desde Excel',
-              'Soporte 1:1 experto',
-              'Cancela cuando quieras'
+              'Tú Clinica desde tu sillón',
+              'No te preocuper por la organización',
+              'Sin necesidad de aplicaciones externas ',
+              'Cancela cuando quieras y te  comunicas'
             ].map((b, i) => (
               <View key={i} style={styles.benefitItem}>
                 <Ionicons name="checkmark-circle" size={20} color={COLORS.secondary} />
@@ -402,4 +572,135 @@ const styles = StyleSheet.create({
   footerTitle: { color: COLORS.white, fontWeight: 'bold', marginBottom: 15 },
   footerLink: { color: '#94a3b8', marginBottom: 10 },
   footerBottom: { marginTop: 40, borderTopWidth: 1, borderTopColor: '#1e293b', paddingTop: 30, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' },
+
+  // Menú flotante
+  menuOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 999,
+  },
+  menuContainer: {
+    position: 'absolute',
+    top: 70,
+    right: 20,
+    width: 250,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 1000,
+    overflow: 'hidden',
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  menuHeaderText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  menuItemText: {
+    marginLeft: 12,
+    fontSize: 15,
+    color: COLORS.textDark,
+    fontWeight: '500',
+  },
+
+  // Nuevos estilos para el formulario
+  labelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textDark,
+    marginBottom: 8,
+    marginTop: 5,
+  },
+  horarioContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 20,
+    gap: 10,
+  },
+  horarioOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  horarioOptionSelected: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  horarioOptionText: {
+    fontSize: 12,
+    color: COLORS.textDark,
+  },
+  horarioOptionTextSelected: {
+    color: COLORS.white,
+    fontWeight: '500',
+  },
+  checkboxText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: COLORS.textDark,
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  ayudaTexto: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginTop: -10,
+    marginBottom: 15,
+    marginLeft: 30,
+    fontStyle: 'italic',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 20,
+  },
+  personalizadoContainer: {
+    marginTop: 10,
+    marginBottom: 15,
+  },
+  inputPersonalizado: {
+    backgroundColor: '#f1f5f9',
+    padding: 15,
+    borderRadius: 10,
+    fontSize: 14,
+    color: COLORS.textDark,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  personalizadoAyuda: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
 });
