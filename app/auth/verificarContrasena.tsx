@@ -17,7 +17,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Importamos el servicio de autenticación conectado con NestJS
@@ -253,102 +253,115 @@ export default function VerificationScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.centerContent}
-        >
-          <ScrollView 
-            contentContainerStyle={styles.scrollContainer}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+    <>
+      <Stack.Screen 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+      <SafeAreaView style={styles.container}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.centerContent}
           >
-            <View style={styles.card}>
-              {/* Botón volver */}
-              <TouchableOpacity 
-                style={styles.backButton}
-                onPress={() => router.back()}
-                disabled={isVerifying}
-              >
-                <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
-              </TouchableOpacity>
+            <ScrollView 
+              contentContainerStyle={styles.scrollContainer}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.card}>
+                {/* Flecha de volver y título */}
+                <View style={styles.headerRow}>
+                  <TouchableOpacity 
+                    onPress={() => router.back()} 
+                    style={styles.backButton}
+                    disabled={isVerifying}
+                  >
+                    <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
+                  </TouchableOpacity>
+                  <Text style={styles.headerTitle}>
+                    {mode === 'login' ? 'Verificar Acceso' : 'Verificar Registro'}
+                  </Text>
+                  <View style={styles.placeholderView} />
+                </View>
 
-              {/* Icono/Logo */}
-              <View style={styles.iconContainer}>
-                <View style={styles.iconCircle}>
-                  <Ionicons name="mail-outline" size={40} color={COLORS.primary} />
+                {/* Icono/Logo */}
+                <View style={styles.iconContainer}>
+                  <View style={styles.iconCircle}>
+                    <Ionicons name="mail-outline" size={40} color={COLORS.primary} />
+                  </View>
+                </View>
+
+                {/* Título adaptativo */}
+                <Text style={styles.title}>
+                  {mode === 'login' ? 'Verificación de Seguridad' : 'Verificar Correo Electrónico'}
+                </Text>
+                
+                {/* Descripción */}
+                <Text style={styles.description}>
+                  Por favor ingresa el código de 6 dígitos enviado a tu correo para {mode === 'login' ? 'iniciar sesión' : 'completar tu registro'}.
+                </Text>
+                
+                {/* Correo receptor */}
+                <Text style={styles.email}>{email || 'cargando correo...'}</Text>
+
+                {/* Inputs de código */}
+                <View style={styles.codeContainer}>
+                  {code.map((digit, index) => (
+                    <TextInput
+                      key={index}
+                      ref={(ref) => { if (ref) inputRefs.current[index] = ref; }}
+                      style={[
+                        styles.codeInput, 
+                        hasError && styles.codeInputError
+                      ]}
+                      value={digit}
+                      onChangeText={(text) => handleCodeChange(text, index)}
+                      onKeyPress={(e) => handleKeyPress(e, index)}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      textAlign="center"
+                      selectTextOnFocus
+                      editable={!isVerifying}
+                    />
+                  ))}
+                </View>
+
+                {/* Botón Verificar */}
+                <TouchableOpacity 
+                  style={[styles.verifyBtn, isVerifying && styles.verifyBtnDisabled]}
+                  onPress={handleVerify}
+                  disabled={isVerifying}
+                >
+                  {isVerifying ? (
+                    <ActivityIndicator color={COLORS.white} />
+                  ) : (
+                    <Text style={styles.verifyBtnText}>Verificar</Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* Reenviar código */}
+                <View style={styles.resendContainer}>
+                  <Text style={styles.resendText}>¿No recibiste el código? </Text>
+                  {isResending ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                  ) : canResend ? (
+                    <Pressable onPress={handleResendCode}>
+                      <Text style={styles.resendLink}>Reenviar</Text>
+                    </Pressable>
+                  ) : (
+                    <Text style={styles.resendTimer}>
+                      Reenviar en {timer}s
+                    </Text>
+                  )}
                 </View>
               </View>
-
-              {/* Título adaptativo */}
-              <Text style={styles.title}>
-                {mode === 'login' ? 'Verificación de Seguridad' : 'Verificar Correo Electrónico'}
-              </Text>
-              
-              {/* Descripción */}
-              <Text style={styles.description}>
-                Por favor ingresa el código de 6 dígitos enviado a tu correo para {mode === 'login' ? 'iniciar sesión' : 'completar tu registro'}.
-              </Text>
-              
-              {/* Correo receptor */}
-              <Text style={styles.email}>{email || 'cargando correo...'}</Text>
-
-              {/* Inputs de código */}
-              <View style={styles.codeContainer}>
-                {code.map((digit, index) => (
-                  <TextInput
-                    key={index}
-                    ref={(ref) => { if (ref) inputRefs.current[index] = ref; }}
-                    style={[
-                      styles.codeInput, 
-                      hasError && styles.codeInputError
-                    ]}
-                    value={digit}
-                    onChangeText={(text) => handleCodeChange(text, index)}
-                    onKeyPress={(e) => handleKeyPress(e, index)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    textAlign="center"
-                    selectTextOnFocus
-                    editable={!isVerifying}
-                  />
-                ))}
-              </View>
-
-              {/* Botón Verificar */}
-              <TouchableOpacity 
-                style={[styles.verifyBtn, isVerifying && styles.verifyBtnDisabled]}
-                onPress={handleVerify}
-                disabled={isVerifying}
-              >
-                {isVerifying ? (
-                  <ActivityIndicator color={COLORS.white} />
-                ) : (
-                  <Text style={styles.verifyBtnText}>Verificar</Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Reenviar código */}
-              <View style={styles.resendContainer}>
-                <Text style={styles.resendText}>¿No recibiste el código? </Text>
-                {isResending ? (
-                  <ActivityIndicator size="small" color={COLORS.primary} />
-                ) : canResend ? (
-                  <Pressable onPress={handleResendCode}>
-                    <Text style={styles.resendLink}>Reenviar</Text>
-                  </Pressable>
-                ) : (
-                  <Text style={styles.resendTimer}>
-                    Reenviar en {timer}s
-                  </Text>
-                )}
-              </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
-    </SafeAreaView>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
+      </SafeAreaView>
+    </>
   );
 }
 
@@ -368,8 +381,25 @@ const styles = StyleSheet.create({
     elevation: 10,
     alignItems: 'center',
   },
-  backButton: { position: 'absolute', top: 20, left: 20, padding: 8 },
-  iconContainer: { marginBottom: 24, marginTop: 20 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+  },
+  backButton: { 
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textDark,
+  },
+  placeholderView: {
+    width: 34, // Mismo ancho que el botón de retroceso para centrar el título
+  },
+  iconContainer: { marginBottom: 24, marginTop: 10 },
   iconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 24, fontWeight: '700', color: COLORS.textDark, textAlign: 'center', marginBottom: 12 },
   description: { fontSize: 14, color: COLORS.textLight, textAlign: 'center', marginBottom: 8 },

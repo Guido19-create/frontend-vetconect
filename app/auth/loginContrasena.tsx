@@ -1,7 +1,7 @@
 // app/auth/loginContrasena.tsx
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
   Alert,
@@ -15,6 +15,8 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 
 // Importamos el servicio de autenticación
@@ -111,88 +113,109 @@ export default function LoginContrasenaScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.centerContent}
-      >
-        <View style={styles.card}>
-          {/* LOGO */}
-          <View style={styles.logoRow}>
-            <View style={styles.logoIcon}>
-              <Ionicons name="paw" size={28} color={COLORS.white} />
-            </View>
-            <Text style={styles.logoText}>Vet<Text style={{ color: COLORS.textDark }}>Conect</Text></Text>
-          </View>
+    <>
+      <Stack.Screen 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <SafeAreaView style={styles.container}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.centerContent}
+          >
+            <View style={styles.card}>
+              {/* Flecha de volver y título */}
+              <View style={styles.headerRow}>
+                <TouchableOpacity 
+                  onPress={() => router.back()} 
+                  style={styles.backButton}
+                >
+                  <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Iniciar Sesión</Text>
+                <View style={styles.placeholderView} />
+              </View>
 
-          {/* INPUT CORREO */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Correo Electrónico</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.textLight} />
-              <TextInput
-                style={styles.input}
-                placeholder="nombre@ejemplo.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={false}
-              />
-            </View>
-          </View>
+              {/* LOGO */}
+              <View style={styles.logoRow}>
+                <View style={styles.logoIcon}>
+                  <Ionicons name="paw" size={28} color={COLORS.white} />
+                </View>
+                <Text style={styles.logoText}>Vet<Text style={{ color: COLORS.textDark }}>Conect</Text></Text>
+              </View>
 
-          {/* INPUT CONTRASEÑA */}
-          <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>Contraseña</Text>
+              {/* INPUT CORREO */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Correo Electrónico</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="mail-outline" size={20} color={COLORS.textLight} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="nombre@ejemplo.com"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={false}
+                  />
+                </View>
+              </View>
+
+              {/* INPUT CONTRASEÑA */}
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>Contraseña</Text>
+                  <TouchableOpacity 
+                    onPress={() => router.push('/auth/recuperarContrasena')}
+                    disabled={isLoading}
+                  >
+                    <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="lock-closed-outline" size={20} color={COLORS.textLight} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ingresa tu contraseña"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    editable={!isLoading}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
+                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.textLight} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* BOTÓN INICIAR SESIÓN */}
               <TouchableOpacity 
-                onPress={() => router.push('/auth/recuperarContrasena')}
+                style={[styles.loginBtn, isLoading && { opacity: 0.7 }]}
+                onPress={handleLogin}
                 disabled={isLoading}
               >
-                <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+                {isLoading ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <Text style={styles.loginBtnText}>Iniciar Sesión</Text>
+                )}
               </TouchableOpacity>
+              
+              {/* FOOTER */}
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
+                <Pressable onPress={() => router.push('/auth/register')} disabled={isLoading}>
+                  <Text style={styles.linkText}>Regístrate aquí</Text>
+                </Pressable>
+              </View>
             </View>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textLight} />
-              <TextInput
-                style={styles.input}
-                placeholder="Ingresa tu contraseña"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                editable={!isLoading}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.textLight} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* BOTÓN INICIAR SESIÓN */}
-          <TouchableOpacity 
-            style={[styles.loginBtn, isLoading && { opacity: 0.7 }]}
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <Text style={styles.loginBtnText}>Iniciar Sesión</Text>
-            )}
-          </TouchableOpacity>
-          
-          {/* FOOTER */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
-            <Pressable onPress={() => router.push('/auth/register')} disabled={isLoading}>
-              <Text style={styles.linkText}>Regístrate aquí</Text>
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </TouchableWithoutFeedback>
+    </>
   );
 }
 
@@ -211,7 +234,30 @@ const styles = StyleSheet.create({
     elevation: 10,
     alignItems: 'center',
   },
-  logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textDark,
+  },
+  placeholderView: {
+    width: 34,
+  },
+  logoRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 30,
+    marginTop: 10,
+  },
   logoIcon: { backgroundColor: COLORS.primary, padding: 8, borderRadius: 12, marginRight: 10 },
   logoText: { fontSize: 28, fontWeight: '800', color: COLORS.secondary },
   inputGroup: { width: '100%', marginBottom: 25 },
