@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import React from 'react';
 import {
     SafeAreaView,
@@ -22,40 +22,60 @@ const COLORS = {
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const { email } = useLocalSearchParams();
+  
   const handleAbrirEnlace = () => {
-  router.push({
-    pathname: '/auth/establecer-nueva-contrasena',
-    params: { email }
-  });
-};
-
+    router.push({
+      pathname: '/auth/establecer-nueva-contrasena',
+      params: { email }
+    });
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.card}>
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>Revisa tu correo</Text>
-          <Text style={styles.description}>
-            Hemos enviado un enlace de recuperación a{' '}
-            <Text style={styles.emailText}>{email || 'tu correo'}</Text>. 
-            Haz clic en el enlace del correo para restablecer tu contraseña.
-          </Text>
-        </View>
-
-        <View style={styles.iconWrapper}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="mail-outline" size={45} color={COLORS.primary} />
+    <>
+      <Stack.Screen 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.card}>
+          {/* Flecha de volver y título */}
+          <View style={styles.headerRow}>
+            <TouchableOpacity 
+              onPress={() => router.push('/auth/loginContrasena')} 
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Revisa tu Correo</Text>
+            <View style={styles.placeholderView} />
           </View>
+
+          <View style={styles.textContainer}>
+            <Text style={styles.title}>Revisa tu bandeja de entrada</Text>
+            <Text style={styles.description}>
+              Hemos enviado un enlace de recuperación a{' '}
+              <Text style={styles.emailText}>{email || 'tu correo'}</Text>. 
+              Haz clic en el enlace del correo para restablecer tu contraseña.
+            </Text>
+          </View>
+
+          <View style={styles.iconWrapper}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="mail-outline" size={45} color={COLORS.primary} />
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.backToLoginButton} 
+            onPress={() => router.push('/auth/loginContrasena')}
+          >
+            <Ionicons name="log-in-outline" size={20} color={COLORS.primary} />
+            <Text style={styles.backToLoginText}>Volver al inicio de sesión</Text>
+          </TouchableOpacity>
         </View>
-<TouchableOpacity 
-  style={styles.backButton} 
-  onPress={() => router.push('/auth/loginContrasena')}  // Cambiado de router.back() a router.push
->
-  <Ionicons name="arrow-back" size={20} color={COLORS.textDark} />
-  <Text style={styles.backButtonText}>Volver</Text>
-</TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
   );
 }
 
@@ -72,15 +92,34 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 450,
     borderRadius: 16,
-    padding: 40,
+    padding: 30,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 15,
     elevation: 5,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textDark,
+  },
+  placeholderView: {
+    width: 34, // Mismo ancho que el botón de retroceso para centrar el título
+  },
   textContainer: {
     alignItems: 'flex-start',
     marginBottom: 40,
+    marginTop: 10,
   },
   title: {
     fontSize: 22,
@@ -109,15 +148,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backButton: {
+  backToLoginButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  backButtonText: {
+  backToLoginText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.textDark,
+    color: COLORS.primary,
   },
 });

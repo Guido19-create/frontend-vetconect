@@ -1,6 +1,6 @@
 // app/auth/login.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import React, { useEffect, useState } from 'react';
@@ -16,6 +16,8 @@ import {
   View,
   ActivityIndicator,
   Pressable,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -145,89 +147,109 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.centerContent}
-      >
-        <View style={styles.card}>
-          {/* LOGO */}
-          <View style={styles.logoRow}>
-            <View style={styles.logoIcon}>
-              <Ionicons name="paw" size={28} color={COLORS.white} />
-            </View>
-            <Text style={styles.logoText}>Vet<Text style={{ color: COLORS.textDark }}>Conect</Text></Text>
-          </View>
-
-          {/* BOTÓN GOOGLE */}
-          <TouchableOpacity 
-            style={styles.googleBtn}
-            onPress={handleGoogleSignIn}
-            disabled={isGoogleLoading || isLoading}
+    <>
+      <Stack.Screen 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <SafeAreaView style={styles.container}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.centerContent}
           >
-            {isGoogleLoading ? (
-              <ActivityIndicator color="#ea4335" style={{ marginRight: 10 }} />
-            ) : (
-              <Ionicons name="logo-google" size={20} color="#ea4335" />
-            )}
-            <Text style={styles.googleBtnText}>
-              {isGoogleLoading ? 'Cargando...' : 'Continuar con Google'}
-            </Text>
-          </TouchableOpacity>
+            <View style={styles.card}>
+              {/* Flecha de volver y título */}
+              <View style={styles.headerRow}>
+                <TouchableOpacity 
+                  onPress={() => router.back()} 
+                  style={styles.backButton}
+                >
+                  <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Inicio de Sesión</Text>
+                <View style={styles.placeholderView} />
+              </View>
 
-          {/* SEPARADOR */}
-          <View style={styles.separatorContainer}>
-            <View style={styles.line} />
-            <Text style={styles.separatorText}>O CONTINUAR CON CORREO</Text>
-            <View style={styles.line} />
-          </View>
+              {/* LOGO */}
+              <View style={styles.logoRow}>
+                <View style={styles.logoIcon}>
+                  <Ionicons name="paw" size={28} color={COLORS.white} />
+                </View>
+                <Text style={styles.logoText}>Vet<Text style={{ color: COLORS.textDark }}>Conect</Text></Text>
+              </View>
 
-          {/* INPUT EMAIL */}
-          <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>Correo Electrónico</Text>
+              {/* BOTÓN GOOGLE */}
+              <TouchableOpacity 
+                style={styles.googleBtn}
+                onPress={handleGoogleSignIn}
+                disabled={isGoogleLoading || isLoading}
+              >
+                {isGoogleLoading ? (
+                  <ActivityIndicator color="#ea4335" style={{ marginRight: 10 }} />
+                ) : (
+                  <Ionicons name="logo-google" size={20} color="#ea4335" />
+                )}
+                <Text style={styles.googleBtnText}>
+                  {isGoogleLoading ? 'Cargando...' : 'Continuar con Google'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* SEPARADOR */}
+              <View style={styles.separatorContainer}>
+                <View style={styles.line} />
+                <Text style={styles.separatorText}>O CONTINUAR CON CORREO</Text>
+                <View style={styles.line} />
+              </View>
+
+              {/* INPUT EMAIL */}
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>Correo Electrónico</Text>
+                </View>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="mail-outline" size={20} color={COLORS.textLight} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ingresa tu correo"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    editable={!isLoading}
+                  />
+                </View>
+              </View>
+
+              {/* BOTÓN SIGUIENTE */}
+              <TouchableOpacity 
+                style={[styles.loginBtn, isLoading && { opacity: 0.7 }]}
+                onPress={handleNextStep}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <Text style={styles.loginBtnText}>Siguiente</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* FOOTER */}
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
+                <Pressable onPress={() => router.push('/auth/register')}>
+                  <Text style={styles.linkText}>Regístrate aquí</Text>
+                </Pressable>
+              </View>
             </View>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.textLight} />
-              <TextInput
-                style={styles.input}
-                placeholder="Ingresa tu correo"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
-            </View>
-          </View>
-
-          {/* BOTÓN SIGUIENTE */}
-          <TouchableOpacity 
-            style={[styles.loginBtn, isLoading && { opacity: 0.7 }]}
-            onPress={handleNextStep}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <Text style={styles.loginBtnText}>Siguiente</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* FOOTER */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
-            <Pressable onPress={() => router.push('/auth/register')}>
-              <Text style={styles.linkText}>Regístrate aquí</Text>
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </TouchableWithoutFeedback>
+    </>
   );
 }
 
-// ... mantienes tus mismos estilos intactos de abajo
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f3f4f6' },
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
@@ -243,7 +265,30 @@ const styles = StyleSheet.create({
     elevation: 10,
     alignItems: 'center',
   },
-  logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textDark,
+  },
+  placeholderView: {
+    width: 34, // Mismo ancho que el botón de retroceso para centrar el título
+  },
+  logoRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 30,
+    marginTop: 10,
+  },
   logoIcon: { backgroundColor: COLORS.primary, padding: 8, borderRadius: 12, marginRight: 10 },
   logoText: { fontSize: 28, fontWeight: '800', color: COLORS.secondary },
   googleBtn: {

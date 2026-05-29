@@ -1,4 +1,4 @@
-// ForgotPasswordScreen.tsx
+// app/auth/recuperarContrasena.tsx
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -16,7 +16,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Importamos tu servicio de autenticación
@@ -112,89 +112,97 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    // Componente para descartar el teclado al hacer tap en cualquier lugar vacío
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.centerContent}
-        >
-          <View style={styles.card}>
-            {/* Botón volver */}
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => router.back()}
-              disabled={isLoading}
-            >
-              <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
-            </TouchableOpacity>
-
-            {/* Icono/Logo */}
-            <View style={styles.iconContainer}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="key-outline" size={40} color={COLORS.primary} />
+    <>
+      <Stack.Screen 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+      {/* Componente para descartar el teclado al hacer tap en cualquier lugar vacío */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <SafeAreaView style={styles.container}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.centerContent}
+          >
+            <View style={styles.card}>
+              {/* Flecha de volver y título */}
+              <View style={styles.headerRow}>
+                <TouchableOpacity 
+                  onPress={() => router.back()} 
+                  style={styles.backButton}
+                  disabled={isLoading}
+                >
+                  <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Recuperar Contraseña</Text>
+                <View style={styles.placeholderView} />
               </View>
-            </View>
 
-            {/* Título */}
-            <Text style={styles.title}>Recuperar Contraseña</Text>
-            
-            {/* Descripción */}
-            <Text style={styles.description}>
-              Ingresa tu correo electrónico para recibir un enlace de recuperación.
-            </Text>
+              {/* Icono/Logo */}
+              <View style={styles.iconContainer}>
+                <View style={styles.iconCircle}>
+                  <Ionicons name="key-outline" size={40} color={COLORS.primary} />
+                </View>
+              </View>
 
-            {/* Input Correo Electrónico */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Correo Electrónico</Text>
-              <View style={[styles.inputWrapper, emailError && styles.inputWrapperError]}>
-                <Ionicons name="mail-outline" size={20} color={COLORS.textLight} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="nombre@ejemplo.com"
-                  value={email}
-                  onChangeText={handleEmailChange}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isLoading}
-                  onSubmitEditing={handleSendCode} // Permite enviar desde el botón del teclado
-                />
-                {email !== '' && !emailError && (
-                  <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+              {/* Descripción */}
+              <Text style={styles.description}>
+                Ingresa tu correo electrónico para recibir un enlace de recuperación.
+              </Text>
+
+              {/* Input Correo Electrónico */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Correo Electrónico</Text>
+                <View style={[styles.inputWrapper, emailError && styles.inputWrapperError]}>
+                  <Ionicons name="mail-outline" size={20} color={COLORS.textLight} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="nombre@ejemplo.com"
+                    value={email}
+                    onChangeText={handleEmailChange}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    onSubmitEditing={handleSendCode} // Permite enviar desde el botón del teclado
+                  />
+                  {email !== '' && !emailError && (
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                  )}
+                </View>
+                {emailError ? (
+                  <Text style={styles.errorText}>{emailError}</Text>
+                ) : null}
+              </View>
+
+              {/* Botón Enviar Código */}
+              <TouchableOpacity 
+                style={[styles.sendBtn, isLoading && styles.sendBtnDisabled]}
+                onPress={handleSendCode}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <Text style={styles.sendBtnText}>Enviar Código</Text>
                 )}
-              </View>
-              {emailError ? (
-                <Text style={styles.errorText}>{emailError}</Text>
-              ) : null}
+              </TouchableOpacity>
+
+              {/* Link Volver al inicio de sesión */}
+              <Pressable 
+                style={styles.backToLogin}
+                onPress={() => router.push('/auth/loginContrasena')}
+                disabled={isLoading}
+              >
+                <Ionicons name="log-in-outline" size={16} color={COLORS.primary} />
+                <Text style={styles.backToLoginText}>Volver al inicio de sesión</Text>
+              </Pressable>
             </View>
-
-            {/* Botón Enviar Código */}
-            <TouchableOpacity 
-              style={[styles.sendBtn, isLoading && styles.sendBtnDisabled]}
-              onPress={handleSendCode}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <Text style={styles.sendBtnText}>Enviar Código</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Link Volver al inicio de sesión */}
-            <Pressable 
-              style={styles.backToLogin}
-              onPress={() => router.push('/auth/loginContrasena')}
-              disabled={isLoading}
-            >
-              <Ionicons name="log-in-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.backToLoginText}>Volver al inicio de sesión</Text>
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </TouchableWithoutFeedback>
+    </>
   );
 }
 
@@ -221,16 +229,27 @@ const styles = StyleSheet.create({
     elevation: 10,
     alignItems: 'center',
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+  },
   backButton: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    padding: 8,
-    zIndex: 1,
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textDark,
+  },
+  placeholderView: {
+    width: 34, // Mismo ancho que el botón de retroceso para centrar el título
   },
   iconContainer: {
     marginBottom: 24,
-    marginTop: 20,
+    marginTop: 10,
   },
   iconCircle: {
     width: 80,
