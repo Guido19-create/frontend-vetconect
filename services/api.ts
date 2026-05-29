@@ -1,5 +1,3 @@
-// src/services/api.ts
-
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.101:3000/api';
 
 export const api = {
@@ -18,23 +16,54 @@ export const api = {
         body: JSON.stringify(body),
       });
 
-      // Si el servidor responde con un error controlado (ej. 400 - Usuario no encontrado)
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        // Creamos el error con el mensaje de NestJS
         throw new Error(errorData.message || `Error del servidor (Status ${response.status})`);
       }
 
-      const data = await response.json();
-      return data;
+      return await response.json();
 
     } catch (error: any) {
-      // 🤐 CAMBIO CLAVE: Cambiamos console.error por console.log para que NO pinte la consola de rojo
-      // Esto evita que aparezca el molesto "Call Stack" en tu terminal.
       console.log(`ℹ️ API Respuesta Controlada [POST ${endpoint}]:`, error.message);
-      
-      // Volvemos a lanzar el error para que el componente login.tsx pueda mostrar la alerta
       throw error;
     }
-  }
+  },
+
+  async get(endpoint: string, params?: Record<string, any>) {
+    try {
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      let fullUrl = `${BACKEND_URL}${cleanEndpoint}`;
+
+      if (params) {
+        const queryParams = Object.entries(params)
+          .filter(([_, value]) => value !== undefined && value !== null && value !== '')
+          .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+          .join('&');
+        
+        if (queryParams) {
+          // Evita romper la URL si por error ya se arrastraba un signo de interrogación previo
+          fullUrl += fullUrl.includes('?') ? `&${queryParams}` : `?${queryParams}`;
+        }
+      }
+
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Error del servidor (Status ${response.status})`);
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.log(`ℹ️ API Respuesta Controlada [GET ${endpoint}]:`, error.message);
+      throw error;
+    }
+  },
 };

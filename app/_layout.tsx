@@ -6,11 +6,11 @@ export default function RootLayout() {
     <>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* 🛠️ CORRECCIÓN: Quitamos los paréntesis para que coincidan con tus carpetas reales */}
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen name="tabs" options={{ headerShown: false }} />
+        <Stack.Screen name="clinicas" options={{ headerShown: false }} />
       </Stack>
     </>
-
-    
   );
 }
