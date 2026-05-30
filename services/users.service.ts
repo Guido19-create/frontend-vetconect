@@ -31,6 +31,31 @@ export const UsersIntegrationService = {
   },
 
   /**
+   * Obtiene las clínicas asociadas al usuario autenticado junto con su rol @Get('my-clinics')
+   */
+  async getUserClinics(token: string) {
+    const response = await fetch(`${BASE_URL}/users/my-clinics`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+    console.log(response)
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Error al obtener las clínicas (${response.status})`
+      );
+    }
+
+    return data;
+  },
+
+  /**
    * Actualiza los datos de texto del perfil del usuario @Patch('update')
    */
   async updateProfile(token: string, payload: UpdateProfilePayload) {

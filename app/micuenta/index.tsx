@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { StatusBar } from 'expo-status-bar';
@@ -19,6 +20,9 @@ import { useRouter } from 'expo-router';
 // Importamos el servicio de integración y utilidades
 import { UsersIntegrationService } from '@/services/users.service';
 import { formatAvatarUrl } from '@/utils/funtionsUtils';
+
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.75; // Las tarjetas ocuparán el 75% del ancho de la pantalla
 
 export default function MiCuentaApp() {
   const router = useRouter();
@@ -35,6 +39,10 @@ export default function MiCuentaApp() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
+
+  // Estados para las clínicas del backend
+  const [totalClinics, setTotalClinics] = useState(0);
+  const [clinicsList, setClinicsList] = useState<any[]>([]);
 
   // Estado de respaldo para comparar si los valores cambiaron realmente antes de enviar
   const [originalPhone, setOriginalPhone] = useState('');
@@ -55,20 +63,31 @@ export default function MiCuentaApp() {
           return;
         }
 
-        const dataProfile = await UsersIntegrationService.getProfile(tokenJWT);
+        // Petición en paralelo del Perfil y de sus Clínicas asociadas
+        const [dataProfile, dataClinics] = await Promise.all([
+          UsersIntegrationService.getProfile(tokenJWT),
+          UsersIntegrationService.getUserClinics(tokenJWT)
+        ]);
 
+        console.log('Datos del perfil:', dataProfile);
+        console.log('Datos de clínicas:', dataClinics);
+
+        // Mapeo del Perfil
         setName(dataProfile.name || dataProfile.username || '');
         setEmail(dataProfile.email || '');
         
         const backendPhone = dataProfile.phone || '';
         setPhone(backendPhone);
-        setOriginalPhone(backendPhone); // Guardamos copia exacta del valor del servidor
+        setOriginalPhone(backendPhone);
         
         setCountry(dataProfile.location || dataProfile.country || '');
         
         const safeAvatarUrl = formatAvatarUrl(dataProfile.avatarURl || dataProfile.avatarUrl);
-        console.log('Avatar URL cargado:', safeAvatarUrl);
         setProfileImage(safeAvatarUrl);
+
+        // Mapeo de Clínicas reales para el carrusel horizontal
+        setTotalClinics(dataClinics.totalClinics || 0);
+        setClinicsList(dataClinics.clinics || []);
 
       } catch (error: any) {
         const errorMsg = error.message || 'No se pudo sincronizar el perfil con NestJS.';
@@ -134,7 +153,7 @@ export default function MiCuentaApp() {
     }
   };
 
-  // 💾 Enviar cambios de campos de texto al endpoint de NestJS (@Patch('update'))
+  // 💾 Enviar cambios de campos de texto al endpoint de NestJS
   const saveChanges = async () => {
     try {
       setSavingData(true);
@@ -146,29 +165,22 @@ export default function MiCuentaApp() {
         return;
       }
 
-      // Estructuramos el payload básico
       const payload: any = {
         username: name,
         location: country,
       };
 
-      // 🔍 DETECCIÓN CRÍTICA: Solo adjuntamos 'phone' si es explícitamente diferente al original
       if (phone.trim() !== originalPhone.trim()) {
         payload.phone = phone;
       }
 
       const response = await UsersIntegrationService.updateProfile(tokenJWT, payload);
-
       setIsEditing(false);
 
       if (response.status === 'pending_verification') {
-        if (Platform.OS === 'web') {
-          alert(`Verificación Pendiente: ${response.message}`);
-        } else {
-          Alert.alert('Verificación Requerida', response.message);
-        }
+        if (Platform.OS === 'web') alert(`Verificación Pendiente: ${response.message}`);
+        else Alert.alert('Verificación Requerida', response.message);
       } else {
-        // Si todo sale bien, actualizamos nuestro respaldo con el nuevo valor confirmado
         setOriginalPhone(phone);
         if (Platform.OS === 'web') alert('Perfil actualizado correctamente en el servidor');
         else Alert.alert('Éxito', 'Perfil actualizado correctamente');
@@ -201,7 +213,6 @@ export default function MiCuentaApp() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Inicio</Text>
         <View style={styles.photoContainer}>
-          
           {uploadingPhoto ? (
             <View style={styles.placeholderImage}>
               <ActivityIndicator size="large" color="#52ab98" />
@@ -227,18 +238,63 @@ export default function MiCuentaApp() {
         </View>
       </View>
 
-      {/* Clínicas */}
+      {/* 🔹 Sección - Mis Clínicas en Formato Horizontal deslizable 🔹 */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Mis Clínicas</Text>
-        <View style={styles.card}>
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Cantidad de clínicas:</Text>
-            <Text style={styles.cardValue}>#3</Text>
-          </View>
-          <TouchableOpacity style={styles.detailsButton}>
-            <Text style={styles.detailsButtonText}>Ver Clínicas</Text>
-          </TouchableOpacity>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Mis Clínicas</Text>
+          <Text style={styles.badgeTotal}>{totalClinics} activas</Text>
         </View>
+
+        {clinicsList.length === 0 ? (
+          <View style={[styles.card, { alignItems: 'center', padding: 20 }]}>
+            <Text style={{ color: '#666', fontStyle: 'italic' }}>No estás asociado a ninguna clínica todavía.</Text>
+          </View>
+        ) : (
+          <ScrollView 
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScrollContainer}
+            decelerationRate="fast"
+            snapToInterval={CARD_WIDTH + 16} // Ajuste para el frenado magnético por tarjeta
+            snapToAlignment="start"
+          >
+            {clinicsList.map((item, index) => (
+              <View key={item.clinicId || index} style={styles.clinicCard}>
+                <View style={styles.clinicHeader}>
+                  {item.logoURL ? (
+                    <Image source={{ uri: formatAvatarUrl(item.logoURL) }} style={styles.clinicLogo} />
+                  ) : (
+                    <View style={styles.clinicLogoPlaceholder}>
+                      <Text style={{ fontSize: 16 }}>🏥</Text>
+                    </View>
+                  )}
+                  <View style={styles.clinicTitleContainer}>
+                    <Text style={styles.clinicName} numberOfLines={1}>{item.name}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: item.isActiveInClinic ? '#e6f4ea' : '#fce8e6' }]}>
+                      <Text style={[styles.statusBadgeText, { color: item.isActiveInClinic ? '#137333' : '#c5221f' }]}>
+                        {item.isActiveInClinic ? 'Activa' : 'Inactiva'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.clinicDivider} />
+
+                <View style={styles.clinicBody}>
+                  <Text style={styles.roleLabel}>Tu Rol asignado:</Text>
+                  <Text style={styles.roleValue}>{item.role}</Text>
+                </View>
+
+                <TouchableOpacity 
+                  style={styles.clinicActionButton}
+                  onPress={() => router.push(`/clinicas/${item.clinicId}`)}
+                >
+                  <Text style={styles.clinicActionText}>Gestionar Clínica</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       {/* Información Personal */}
@@ -354,20 +410,38 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: 20,
-    marginHorizontal: 16,
     marginBottom: 10,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 5,
+  },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 15,
     color: '#333',
+    marginHorizontal: 16,
+    marginBottom: 15,
+  },
+  badgeTotal: {
+    backgroundColor: '#e6f4ea',
+    color: '#137333',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 12,
   },
   photoContainer: {
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
+    marginHorizontal: 16,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
       android: { elevation: 3 },
@@ -407,40 +481,109 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
   },
+  
+  // Estilos de las Cartas Horizontales de Clínicas
+  horizontalScrollContainer: {
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingBottom: 12,
+  },
+  clinicCard: {
+    backgroundColor: '#fff',
+    width: CARD_WIDTH,
+    borderRadius: 14,
+    padding: 16,
+    marginRight: 16,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 4 },
+      android: { elevation: 4 },
+    }),
+  },
+  clinicHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  clinicLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+  },
+  clinicLogoPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clinicTitleContainer: {
+    flex: 1,
+  },
+  clinicName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  clinicDivider: {
+    height: 1,
+    backgroundColor: '#eee',
+    verticalAlign: 'middle',
+    marginVertical: 12,
+  },
+  clinicBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  roleLabel: {
+    fontSize: 13,
+    color: '#666',
+  },
+  roleValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2b6777',
+    backgroundColor: '#f0f7f4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  clinicActionButton: {
+    backgroundColor: '#fafafa',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  clinicActionText: {
+    color: '#52ab98',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
+    marginHorizontal: 16,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
       android: { elevation: 3 },
     }),
-  },
-  cardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  cardLabel: {
-    fontSize: 16,
-    color: '#666',
-  },
-  cardValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#52ab98',
-  },
-  detailsButton: {
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  detailsButtonText: {
-    color: '#52ab98',
-    fontSize: 14,
-    fontWeight: '500',
   },
   subsectionTitle: {
     fontSize: 18,
@@ -484,6 +627,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     marginTop: 10,
     marginBottom: 30,
+    marginHorizontal: 16,
   },
   editButton: {
     backgroundColor: '#2b6777',
