@@ -289,7 +289,7 @@ export default function MiCuentaApp() {
                   style={styles.clinicActionButton}
                   onPress={() => router.push(`/clinicas/${item.clinicId}`)}
                 >
-                  <Text style={styles.clinicActionText}>Gestionar Clínica</Text>
+                  <Text style={styles.clinicActionText}>Ver Clínica</Text>
                 </TouchableOpacity>
               </View>
             ))}

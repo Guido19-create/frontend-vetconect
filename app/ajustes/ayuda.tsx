@@ -256,66 +256,6 @@ export default function HelpScreen() {
           ))}
         </View>
 
-        {/* Guías y Tutoriales */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Guías y Tutoriales</Text>
-          
-          <TouchableOpacity style={styles.guideCard} onPress={() => handleOpenURL('https://vetclinic.com/guides/crear-clinica')}>
-            <Text style={styles.guideIcon}>🏥</Text>
-            <View style={styles.guideInfo}>
-              <Text style={styles.guideTitle}>Cómo crear tu primera clínica</Text>
-              <Text style={styles.guideDescription}>Aprende paso a paso a configurar tu clínica</Text>
-            </View>
-            <Text style={styles.guideArrow}>→</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.guideCard} onPress={() => handleOpenURL('https://vetclinic.com/guides/registrar-mascota')}>
-            <Text style={styles.guideIcon}>🐕</Text>
-            <View style={styles.guideInfo}>
-              <Text style={styles.guideTitle}>Registrar tu primera mascota</Text>
-              <Text style={styles.guideDescription}>Mantén el historial clínico organizado</Text>
-            </View>
-            <Text style={styles.guideArrow}>→</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.guideCard} onPress={() => handleOpenURL('https://vetclinic.com/guides/notificaciones')}>
-            <Text style={styles.guideIcon}>🔔</Text>
-            <View style={styles.guideInfo}>
-              <Text style={styles.guideTitle}>Configurar notificaciones</Text>
-              <Text style={styles.guideDescription}>No te pierdas ninguna actualización</Text>
-            </View>
-            <Text style={styles.guideArrow}>→</Text>
-          </TouchableOpacity>
-        </View>
-
-
-        {/* Estado del sistema */}
-        <View style={styles.section}>
-          <View style={styles.systemStatus}>
-            <View style={styles.statusHeader}>
-              <Text style={styles.sectionTitle}>Estado del Sistema</Text>
-              <View style={styles.statusBadge}>
-                <View style={styles.statusDot} />
-                <Text style={styles.statusText}>Todos los sistemas operativos</Text>
-              </View>
-            </View>
-            <View style={styles.statusMetrics}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>99.9%</Text>
-                <Text style={styles.metricLabel}>Uptime</Text>
-              </View>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>&lt;100ms</Text>
-                <Text style={styles.metricLabel}>Respuesta</Text>
-              </View>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>24/7</Text>
-                <Text style={styles.metricLabel}>Soporte</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
         {/* Compartir app */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.shareButton} onPress={handleShareApp}>

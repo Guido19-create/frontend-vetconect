@@ -25,6 +25,7 @@ import { UsersIntegrationService } from "../services/users.service";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
+
 const galeriaImagenes = [
   require("@/assets/images/galeria-1.jpg"),
   require("@/assets/images/galeria-2.jpg"),
@@ -150,8 +151,19 @@ export default function VetConectLanding() {
       return;
     }
 
+    if (opcion === "Ajustes") {
+      router.push("/ajustes/ajustes");
+      return;
+    }
+
+    if (opcion === "Ayuda") {
+      router.push("/ajustes/ayuda");
+      return;
+    }
+
     if (opcion === "Mi Cuenta") {
       setLoadingProfile(true);
+      
       try {
         // Buscamos el token JWT guardado en el dispositivo
         const tokenJWT = await AsyncStorage.getItem("access_token");
