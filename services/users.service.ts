@@ -1,7 +1,4 @@
-import { Platform } from "react-native";
-
-const apiHost = process.env.EXPO_PUBLIC_API_HOST || "192.168.1.102";
-const BASE_URL = `http://${apiHost}:3000/api`;
+import { apiClient } from './api.client';
 
 export interface UpdateProfilePayload {
   username?: string;
@@ -14,58 +11,34 @@ export const UsersIntegrationService = {
   /**
    * Obtiene la información del perfil del usuario conectado @Get('me')
    */
-  async getProfile(token: string) {
-    const response = await fetch(`${BASE_URL}/users/me`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+  async getProfile() {
+    const response = await apiClient('/users/me', { method: 'GET' });
 
     if (!response.ok) {
       throw new Error("Error al obtener el perfil del servidor");
     }
-
     return await response.json();
   },
 
   /**
    * Obtiene las clínicas asociadas al usuario autenticado junto con su rol @Get('my-clinics')
    */
-  async getUserClinics(token: string) {
-    const response = await fetch(`${BASE_URL}/users/my-clinics`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-    console.log(response)
-
+  async getUserClinics() {
+    const response = await apiClient('/users/my-clinics', { method: 'GET' });
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(
-        data.message || `Error al obtener las clínicas (${response.status})`
-      );
+      throw new Error(data.message || `Error al obtener las clínicas (${response.status})`);
     }
-
     return data;
   },
 
   /**
    * Actualiza los datos de texto del perfil del usuario @Patch('update')
    */
-  async updateProfile(token: string, payload: UpdateProfilePayload) {
-    const response = await fetch(`${BASE_URL}/users/update`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+  async updateProfile(payload: UpdateProfilePayload) {
+    const response = await apiClient('/users/update', {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     });
 
@@ -74,17 +47,13 @@ export const UsersIntegrationService = {
     if (!response.ok) {
       throw new Error(data.message || `Error al actualizar perfil (${response.status})`);
     }
-
     return data;
   },
 
   /**
    * Sube el archivo binario del avatar a NestJS @Post('uploadAvatar')
    */
-  async uploadAvatar(
-    token: string,
-    fileUri: string,
-  ): Promise<{ url: string; message: string }> {
+  async uploadAvatar(fileUri: string): Promise<{ url: string; message: string }> {
     const filename = fileUri.split("/").pop() || "avatar.jpg";
     const match = /\.(\w+)$/.exec(filename);
     const type = match ? `image/${match[1]}` : "image/jpeg";
@@ -96,22 +65,19 @@ export const UsersIntegrationService = {
       type: type,
     } as any);
 
-    const response = await fetch(`${BASE_URL}/users/uploadAvatar`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
+    // Nota: Eliminamos Content-Type aquí para que fetch ponga automáticamente el boundary de FormData
+    const response = await apiClient('/users/uploadAvatar', {
+      method: 'POST',
+      headers: { 'Content-Type': '' }, 
       body: formData,
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.message || `Error al subir la imagen al servidor (${response.status})`,
-      );
+      throw new Error(errorData.message || `Error al subir la imagen al servidor (${response.status})`);
     }
 
     return response.json();
   },
+
 };

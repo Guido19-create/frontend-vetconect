@@ -21,10 +21,9 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Importamos el servicio seguro
-import { UsersIntegrationService } from "../services/users.service";
+import { ClinicsIntegrationService } from "../services/clinics.service";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
-
 
 const galeriaImagenes = [
   require("@/assets/images/galeria-1.jpg"),
@@ -115,13 +114,11 @@ export default function VetConectLanding() {
   const scrollViewRef = useRef<ScrollView>(null);
   const formularioY = useRef<number>(0);
 
-  // Estados de carga del Perfil
-  const [loadingProfile, setLoadingProfile] = useState(false);
+  // Estados de carga generales (Perfil y creación de clínica)
+  const [loading, setLoading] = useState(false);
+  const [loaderMessage, setLoaderMessage] = useState("Validando sesión...");
 
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
     clinic: "",
     direccion: "",
     descripcion: "",
@@ -142,7 +139,116 @@ export default function VetConectLanding() {
 
   const cerrarMenu = () => setMenuVisible(false);
 
-  // 🎯 Lógica de navegación y verificación del Perfil con NestJS
+  const mostrarAlerta = (titulo: string, mensaje: string) => {
+    if (Platform.OS === "web") {
+      alert(`${titulo}\n\n${mensaje}`);
+    } else {
+      Alert.alert(titulo, mensaje);
+    }
+  };
+
+  // 🎯 Mapeador auxiliar de los strings de horarios al objeto estructurado requerido por NestJS
+  const construirWorkingHours = () => {
+    const horarioSeleccionado = form.horario;
+
+    const horasPorDefecto = { open: "09:00", close: "19:00" }; // Lun-Vie 9am-7pm
+    const horasExtendidas = { open: "09:00", close: "21:00" }; // Lun-Vie 9am-9pm
+    const horasSabado = { open: "09:00", close: "20:00" };    // Lun-Sáb 9am-8pm
+    const horasDomingo = { open: "10:00", close: "18:00" };   // Lun-Dom 10am-6pm
+    const horas24h = { open: "00:00", close: "23:59" };       // 24 Horas
+
+    const baseHours: Record<string, { open: string; close: string } | null> = {
+      monday: null,
+      tuesday: null,
+      wednesday: null,
+      thursday: null,
+      friday: null,
+      saturday: null,
+      sunday: null,
+    };
+
+    if (horarioSeleccionado === "Lun-Vie 9am-7pm") {
+      ["monday", "tuesday", "wednesday", "thursday", "friday"].forEach(d => baseHours[d] = horasPorDefecto);
+    } else if (horarioSeleccionado === "Lun-Vie 9am-9pm") {
+      ["monday", "tuesday", "wednesday", "thursday", "friday"].forEach(d => baseHours[d] = horasExtendidas);
+    } else if (horarioSeleccionado === "Lun-Sáb 9am-8pm") {
+      ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].forEach(d => baseHours[d] = horasSabado);
+    } else if (horarioSeleccionado === "Lun-Dom 10am-6pm") {
+      ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].forEach(d => baseHours[d] = horasDomingo);
+    } else if (horarioSeleccionado === "24 horas (Urgencias)") {
+      ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].forEach(d => baseHours[d] = horas24h);
+    } else {
+      // En caso de personalizado, se envía una estructura diurna estándar por defecto para evitar fallos de DTO
+      ["monday", "tuesday", "wednesday", "thursday", "friday"].forEach(d => baseHours[d] = horasPorDefecto);
+    }
+
+    return baseHours;
+  };
+
+  // 🚀 Función para enviar el formulario e integrar con la API NestJS
+  const handleCrearClinica = async () => {
+    // Validaciones de frontend mínimas requeridas por los asteriscos
+    if (!form.clinic.trim() || !form.direccion.trim()) {
+      mostrarAlerta("Campos Incompletos", "Por favor completa el nombre y la dirección de la clínica.");
+      return;
+    }
+
+    setLoaderMessage("Creando tu clínica en el servidor...");
+    setLoading(false); // Reset por seguridad
+    setLoading(true);
+
+    try {
+      // Validamos si hay sesión antes de proceder
+      const token = await AsyncStorage.getItem("access_token");
+      if (!token) {
+        setLoading(false);
+        mostrarAlerta("Acceso Denegado", "Debes iniciar sesión primero para registrar una clínica.");
+        router.push("/auth/login");
+        return;
+      }
+
+      const payload = {
+        name: form.clinic.trim(),
+        description: form.descripcion.trim() || "Sin descripción proporcionada.",
+        address: form.direccion.trim(),
+        privacy: "public" as const, // O "private" basándote en los requerimientos de tu DTO
+        workingHours: construirWorkingHours(),
+      };
+
+      await ClinicsIntegrationService.createClinic(payload);
+
+      // Status 201: Éxito
+      mostrarAlerta("¡Enhorabuena!", "Clínica creada exitosamente.");
+      
+      // Limpiamos el formulario tras la respuesta correcta
+      setForm({
+        clinic: "",
+        direccion: "",
+        descripcion: "",
+        horario: "Lun-Vie 9am-7pm",
+        horarioPersonalizado: "",
+        mostrarHorarioPersonalizado: false,
+        requiereAprobacion: false,
+      });
+
+      // Redirigir opcionalmente al listado de clínicas del usuario
+      router.push("/clinicas");
+
+    } catch (error: any) {
+      const msg: string = error.message || "";
+
+      if (msg.includes("409")) {
+        mostrarAlerta("Ocurrio un error", "El nombre de la clínica ya existe. Elige uno diferente.");
+      } else if (msg.includes("400")) {
+        mostrarAlerta("Ocurrio un error", "Verifica que toda la información cumpla con las reglas del servidor.");
+      } else {
+        mostrarAlerta("Error", msg || "Hubo un problema al procesar la solicitud.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleMenuOption = async (opcion: string) => {
     setMenuVisible(false);
 
@@ -162,30 +268,23 @@ export default function VetConectLanding() {
     }
 
     if (opcion === "Mi Cuenta") {
-      setLoadingProfile(true);
+      setLoaderMessage("Validando sesión con NestJS...");
+      setLoading(true);
       
       try {
-        // Buscamos el token JWT guardado en el dispositivo
         const tokenJWT = await AsyncStorage.getItem("access_token");
 
         if (!tokenJWT) {
-          const mensajeAuth =
-            "Debes iniciar sesión primero para acceder a tu cuenta.";
-          if (Platform.OS === "web") alert(mensajeAuth);
-          else Alert.alert("Acceso Restringido", mensajeAuth);
-
+          mostrarAlerta("Acceso Restringido", "Debes iniciar sesión primero para acceder a tu cuenta.");
           router.push("/auth/login");
           return;
         }
 
         router.push("/micuenta");
       } catch (error: any) {
-        const errorMsg =
-          error.message || "No se pudo sincronizar la cuenta con el servidor.";
-        if (Platform.OS === "web") alert(errorMsg);
-        else Alert.alert("Debe autenticarse para realizar esta acción", errorMsg);
+        mostrarAlerta("Debe autenticarse para realizar esta acción", error.message || "");
       } finally {
-        setLoadingProfile(false);
+        setLoading(false);
       }
     }
   };
@@ -220,11 +319,11 @@ export default function VetConectLanding() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* OVERLAY DE CARGA DEL ENDPOINT */}
-      {loadingProfile && (
+      {/* OVERLAY DE CARGA REUTILIZABLE */}
+      {loading && (
         <View style={styles.loaderOverlay}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loaderText}>Validando sesión con NestJS...</Text>
+          <Text style={styles.loaderText}>{loaderMessage}</Text>
         </View>
       )}
 
@@ -250,7 +349,6 @@ export default function VetConectLanding() {
                 Clínicas
               </Text>
             </TouchableOpacity>
-            {/* Acceso a Mi cuenta directo en Desktop */}
             <TouchableOpacity onPress={() => handleMenuOption("Mi Cuenta")}>
               <Text
                 style={[
@@ -666,7 +764,8 @@ export default function VetConectLanding() {
 
               <View style={styles.divider} />
 
-              <TouchableOpacity style={styles.btnPrimary}>
+              {/* Botón adaptado para llamar a la API con control de estados */}
+              <TouchableOpacity style={styles.btnPrimary} onPress={handleCrearClinica}>
                 <Text style={styles.btnTextWhite}>Crear mi clínica gratis</Text>
               </TouchableOpacity>
             </View>
@@ -708,6 +807,7 @@ export default function VetConectLanding() {
   );
 }
 
+// Los estilos (styles) permanecen intactos abajo...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   navbar: {

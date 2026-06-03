@@ -52,21 +52,10 @@ export default function MiCuentaApp() {
     const cargarPerfilUsuario = async () => {
       try {
         setLoading(true);
-        const tokenJWT = await AsyncStorage.getItem('access_token');
-
-        if (!tokenJWT) {
-          const alertMsg = 'Sesión expirada o no válida. Inicia sesión nuevamente.';
-          if (Platform.OS === 'web') alert(alertMsg);
-          else Alert.alert('Acceso Denegado', alertMsg);
-          
-          router.push('/auth/login');
-          return;
-        }
-
-        // Petición en paralelo del Perfil y de sus Clínicas asociadas
+        
         const [dataProfile, dataClinics] = await Promise.all([
-          UsersIntegrationService.getProfile(tokenJWT),
-          UsersIntegrationService.getUserClinics(tokenJWT)
+          UsersIntegrationService.getProfile(),
+          UsersIntegrationService.getUserClinics()
         ]);
 
         console.log('Datos del perfil:', dataProfile);
@@ -90,9 +79,17 @@ export default function MiCuentaApp() {
         setClinicsList(dataClinics.clinics || []);
 
       } catch (error: any) {
-        const errorMsg = error.message || 'No se pudo sincronizar el perfil con NestJS.';
+        console.error(error);
+        // Si el interceptor falló por completo y borró los tokens, redirigimos
+        const tokenJWT = await AsyncStorage.getItem('access_token');
+        if (!tokenJWT) {
+          router.push('/auth/login');
+          return;
+        }
+        
+        const errorMsg = error.message || 'No se pudo sincronizar el perfil';
         if (Platform.OS === 'web') alert(errorMsg);
-        else Alert.alert('Error de Servidor', errorMsg);
+        else Alert.alert('Error de Servidor', 'No se pudo cargar la información de perfil, comprueba tu autenticación.');
       } finally {
         setLoading(false);
       }
@@ -136,7 +133,7 @@ export default function MiCuentaApp() {
         return;
       }
 
-      const response = await UsersIntegrationService.uploadAvatar(tokenJWT, selectedImageUri);
+      const response = await UsersIntegrationService.uploadAvatar(selectedImageUri);
       const safeAvatarUrl = formatAvatarUrl(response.url);
       setProfileImage(safeAvatarUrl);
 
@@ -174,7 +171,7 @@ export default function MiCuentaApp() {
         payload.phone = phone;
       }
 
-      const response = await UsersIntegrationService.updateProfile(tokenJWT, payload);
+      const response = await UsersIntegrationService.updateProfile(payload);
       setIsEditing(false);
 
       if (response.status === 'pending_verification') {

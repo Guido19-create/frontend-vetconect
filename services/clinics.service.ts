@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { apiClient } from "./api.client";
 
 export interface ClinicItem {
   id: string;
@@ -128,5 +129,37 @@ export class ClinicsIntegrationService {
       throw new Error("No se pudo obtener el catálogo de servicios médicos.");
     }
     return await response.json();
+  }
+
+    static async createClinic(payload: {
+    name: string;
+    description: string;
+    address: string;
+    privacy: "public" | "private";
+    workingHours: Record<string, { open: string; close: string } | null>;
+  }) {
+    const response = await apiClient("/clinics", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    console.log(response)
+    // Si es 201 (Creado exitosamente), parseamos y retornamos directamente
+    if (response.status === 201) {
+      return await response.json();
+    }
+
+    // Si falla, extraemos el mensaje de error del servidor para controlarlo en la vista
+    const errorData = await response.json().catch(() => ({}));
+
+    if (response.status === 409) {
+      throw new Error("409: El nombre de la clínica ya existe.");
+    }
+
+    if (response.status === 400) {
+      throw new Error(`400: Datos de entrada inválidos. ${errorData.message || ""}`);
+    }
+
+    throw new Error(errorData.message || `Error inesperado del servidor (${response.status})`);
   }
 }
